@@ -12,5 +12,5 @@ bochs :
 	dd if=boot.bin of=boot.img bs=512 count=1 conv=notrunc
 	bochs
 
-boot.bin : Boot/boot.asm
+boot.bin : Boot/boot.asm Boot/boot.inc
 	$(ASM) $(ASMFLAGS) -o $@ $<
