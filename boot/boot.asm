@@ -3,32 +3,32 @@
 ; #############################
 %include "boot.inc"
 
-org 		7c00h				; Load to memory address 0x7c00
+org 		7c00h					; Load to memory address 07c0h:0000h = 7c00h
 
 ; JUMP
-jmp short LABEL_BOOTLOADER		; 2 Bytes short jmp
-nop								; 1 Byte nop
-								; 3 Bytes Totaly
+jmp short LABEL_BOOTLOADER				; 2 Bytes short jmp
+nop							; 1 Byte nop
+							; 3 Bytes Totaly
 
 ; Header of FAT12 Floppy Disk
-OEMName				db			'OEM Name'		; (8 Bytes) OEM String
-BytesPerSector  	dw			512				; (2 Bytes) Count of Bytes per Sector
-SectorPerCluster	db			1				; (1 Byte) Count of Sectors per Cluster
-SectorsOfBoot		dw			1				; (2 Bytes) Count of Sectors for Booting
-FATsCount			db 			2				; (1 Byte) Count of FATs
-RootEntryCount		dw		    224				; (2 Bytes) Count of Root Entries
+OEMName			db			'OEM Name'		; (8 Bytes) OEM String
+BytesPerSector  	dw			512			; (2 Bytes) Count of Bytes per Sector
+SectorPerCluster	db			1			; (1 Byte) Count of Sectors per Cluster
+SectorsOfBoot		dw			1			; (2 Bytes) Count of Sectors for Booting
+FATsCount		db 			2			; (1 Byte) Count of FATs
+RootEntryCount		dw			224			; (2 Bytes) Count of Root Entries
 TotalSectors		dw			2880			; (2 Bytes)	Total count of sectors(2*80*18)
 MediaDescriptor		db			0xf0			; (1 Byte) Media Descriptor
-SectorsPerFAT		dw			9				; (2 Bytes) Count of sectors per FAT12
-SectorsPerTrack		dw			18				; (2 Bytes) Count of sectors per Track
-NumberOfHeads		dw			2				; (2 Bytes) Number of heads
-HiddenSector		dd			0				; (4 Bytes) Count of hidden sectors
-TotalSector			dd			0				; (4 Bytes) 
-DriveNumber			db 			0				; (1 Byte) Drive Number for int 13h
-Reserved			db			0				; (1 Byte) Not used
-ExtendedBootSign	db			29h				; (1 Byte) Extended Boot Sign = 29h
-VolumeID			dd			0				; (4 Bytes) ID of this volume
-VolumeLabel			db			'VolumeLabel'	; (11 Bytes) Label of this volume
+SectorsPerFAT		dw			9			; (2 Bytes) Count of sectors per FAT12
+SectorsPerTrack		dw			18			; (2 Bytes) Count of sectors per Track
+NumberOfHeads		dw			2			; (2 Bytes) Number of heads
+HiddenSector		dd			0			; (4 Bytes) Count of hidden sectors
+TotalSector		dd			0			; (4 Bytes) 
+DriveNumber		db 			0			; (1 Byte) Drive Number for int 13h
+Reserved		db			0			; (1 Byte) Not used
+ExtendedBootSign	db			29h			; (1 Byte) Extended Boot Sign = 29h
+VolumeID		dd			0			; (4 Bytes) ID of this volume
+VolumeLabel		db			'VolumeLabel'		; (11 Bytes) Label of this volume
 FileSystemType		db			'FAT12   '		; (8 Bytes)	File System Type
 
 ; Start of Boot Loader
@@ -36,17 +36,20 @@ LABEL_BOOTLOADER:
 	mov ax, cs					; Get code segment address
 	mov ds, ax					; Set data segment address
 	mov es, ax					; Set extra segment address
-	mov ss, ax					; Set stack segment address
-	mov sp, BaseOfStackOffset	; Set stack pointer
-	
+	mov bx, StackSegment				; Set stack segment address
+	mov ss, bx
+	mov sp, StackOffset				; Set stack pointer
 	
 	; Display Message
 	call ClearScreen
 	push word Str_Loading				; Transfer the address of that string
 	push word [StrLen_Loading]			; Transfer the length of that string
 	push word 0000h					; Set 0 Row : 0 Column
-	call WriteString	
-	add sp, 4					; Reset stack
+	call WriteString
+
+	; Test data	
+	push word 0de60h
+	call WriteNumber
 
 	jmp $						; Stop at here
 
@@ -55,7 +58,7 @@ LABEL_BOOTLOADER:
 ; #############################
 
 ; WriteString
-; Order of Pushing stack: length, address of string, column, row
+; Order of pushing stack: address of string, length, Row:Column
 WriteString:
 	pop ax				; Save return address
 	pop dx				; Get Row:Column
@@ -69,6 +72,44 @@ WriteString:
 	int 10h			
 	ret			
 
+; WriteNumber(16-bit)
+; Order of pushing stack: 16-bit number
+WriteNumber:
+	pop ax				; Save return address
+	pop bx				; Get Number
+	push ax				; Restore return address
+	
+	xor cx, cx			; Clear loop register
+	xor edx, edx			; Clear result register
+
+WriteNumber_Loop:	
+	xor ax, ax			; Clear ax
+	mov al, bl			
+	shr bx, 4			; Let next digit be on the rightmost position
+	
+	and al, 0fh			; Get the front digit
+	add al, 48			; Add the offset
+	
+	cmp al,	57			; Check decimal digit or hexdecimal digit
+	jbe WriteNumber_EndLoop		; Not a hexdecimal digit
+	add al, 7			; Add the offset to become a real hexdecimal digit for char display
+
+WriteNumber_EndLoop:	
+	shl edx, 8			; Shift the former result to higher position
+	add dl, al			; Save the result
+	inc cx				; Loop register increase	
+	cmp cx, 4			; Totally 4 digits for 16-bit number
+	jne WriteNumber_Loop		; Continue Loop
+
+
+	mov [StrBuffer], edx
+	push word StrBuffer		; Go to display 
+	push word 4
+	push word 0100h
+	call WriteString
+
+	ret
+
 ; ClearScreen
 ClearScreen:
 	mov ah, 06h;		
@@ -80,12 +121,32 @@ ClearScreen:
 	int 10h;
 	ret;
 
+; ### Floppy Disk Utilities ###
+
+; Read One Sector of Floppy Disk
+; Order of pushing stack: Sector position   
+ReadFloppyOne:
+	pop bx				; Save return address
+        pop ax				; Get sector position (AX as dividend)
+	push bx				; Restore return address
+        
+	; Calculate physical position
+	mov bl, 18
+	;div
+
+	; Debug Print
+	;push
+	call WriteNumber
+	
+	ret
+
 ; #############################
 ;              Data
 ; #############################
 Str_Loading:			db 		"Booting From Floppy..."
 StrLen_Loading:			dw		$ - Str_Loading
-
+StrBuffer:			db		"XXXX"			; 4 Bytes Buffers
+FloppySectorsPerTrack:		dw		18
 
 
 ; End

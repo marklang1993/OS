@@ -1,8 +1,21 @@
 ;##############################
 ;         Definition
 ;##############################
-; Stack
-BaseOfStackOffset   	equ 		07c00h
-; Loader.bin Start Address (9000h:0000~F000h : 60 KB)
-LoaderSegment			equ			09000h
+; Stack - Address Range		(1000h:FFFFh~1000h:0000h = 64 KB)
+StackSegment 			equ 		01000h
+StackOffset	   		equ 		0ffffh
+
+; Common Buffer - Address Range (2000h:0000h~2000h:FFFFh = 64 KB)
+BufferSegment			equ		02000h
+BufferOffset			equ 		0000h
+
+; Loader.bin - Address Range 	(3000h:0000h~3000h:FFFFh = 64 KB)
+LoaderSegment			equ		03000h
 LoaderOffset   			equ 		0000h
+
+; Floppy Related
+FloppyCylinders			equ		80
+FloppyHeaders			equ		2
+FloppySectors			equ		18
+FloppyTotalSectors		equ		2880
+FloppyBytesPerSector		equ		512
