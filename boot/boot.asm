@@ -48,8 +48,8 @@ LABEL_BOOTLOADER:
 	call WriteString
 
 	; Test data	
-	push word 0de60h
-	call WriteNumber
+	push word 0h
+	call ReadFloppyOne
 
 	jmp $						; Stop at here
 
@@ -66,6 +66,8 @@ WriteString:
 	pop bp				; Get the address of String from stack
 	push ax				; Restore return address
 
+	mov ax, 0h			; Set es = 0000h since the string address is es:bp
+	mov es, ax
 	mov ah, 13h			; Parameter: show string
 	mov al, 01h			; Parameter: continue to show
 	mov bx, 000ch			; Page: 0, Back: Black, Font: Red
@@ -131,11 +133,31 @@ ReadFloppyOne:
 	push bx				; Restore return address
         
 	; Calculate physical position
-	mov bl, 18
-	;div
+	mov bl, 18			; bl is divisor
+	div bl				; ax / bl = al(quotient) ... ah(remainder)
+	
+	mov ch, al			; Cylinder
+	shr ch, 1
+	mov cl, ah			; Start sector No.
+	inc cl
+	mov dh, al			; Header
+	and dh, 1
+	mov dl, 0			; Driver No. ==> 0 means Driver A
+	mov bx, BufferSegment		; Set buffer address
+	mov es, bx
+	mov bx, BufferOffset
+
+ReadFloppyOne_Read:
+	mov ah, 02h			; Set Int 13h
+	mov al, 1			; Read 1 sector
+
+	int 13h
+
+	jc ReadFloppyOne_Read		; If error occurs, CF will be set. Then read again
 
 	; Debug Print
-	;push
+	mov ax, [es:10]
+	push ax
 	call WriteNumber
 	
 	ret
