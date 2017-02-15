@@ -47,10 +47,40 @@ LABEL_BOOTLOADER:
 	push word 0000h					; Set 0 Row : 0 Column
 	call WriteString
 
-	; Test data	
-	push word 0h
+	; ##### Boot Loader #####
+	; Assume only 16 files in the root folder area (sector 19 on floppy = 512 bytes / 32 = 16 files)
+	xor cx, cx
+
+	; Read Root Folder	
+	push word 19					; Prepare for reading root folder area
 	call ReadFloppyOne
 
+LoaderSearch_Loop:	
+	mov al, 32					; Set size of Root Entry Struct 
+	mul cl						; Calculate offset of current file name under root folder
+	
+	push cx						; Save loop variable
+
+	push word LoaderFileName			; Prepare for a string comparation 
+	push ax
+	push word 11					; Fix size : 11 bytes
+	call StringCompare
+	cmp cx, 0					; Check the string compare result
+	jz LoaderFound					; Loader found if cx == 0
+	
+	pop cx						; Restore cx
+	inc cx						; cx++
+	cmp cx, 16					; Check maximum file count
+	jnz LoaderSearch_Loop
+	
+	; Cannot find Loader
+	push word Str_Failed
+	push word [StrLen_Failed]
+	push word 0100h					; Set 1 Row : 0 Column			
+	call WriteString
+	jmp $
+
+LoaderFound:
 	jmp $						; Stop at here
 
 ; #############################
@@ -123,10 +153,41 @@ ClearScreen:
 	int 10h;
 	ret;
 
+; StringCompare
+; Order	of pushing stack: address of src string (ds), address of dst string (es), length in bytes
+; Return val is in cx:       0     - equal, 
+;                      more than 0 - not equal
+StringCompare:
+	pop ax	
+	pop cx				; get length in bytes
+	pop di				; get address of dst string
+	pop si				; get address of src string
+	push ax 
+
+	mov ax, 0			; set ds = 0
+	mov ds, ax
+	mov ax, BufferSegment		; set es = BufferSegment
+	mov es, ax
+	
+StringCompare_Loop:
+	mov al, [ds:si]			; Get a char from src string
+	mov ah, [es:di]			; Get a char from dst string
+	cmp al, ah			; Compare
+	jnz StringCompare_EndLoop	; If not equal, then goto NotEqual processing
+
+	dec cx				; cx--
+	inc si				; si++
+	inc di				; di++
+	cmp cx, 0			; Check loop end
+	jnz StringCompare_Loop
+
+StringCompare_EndLoop:
+	ret
+
 ; ### Floppy Disk Utilities ###
 
 ; Read One Sector of Floppy Disk
-; Order of pushing stack: Sector position   
+; Order of pushing stack: Sector position 
 ReadFloppyOne:
 	pop bx				; Save return address
         pop ax				; Get sector position (AX as dividend)
@@ -155,19 +216,17 @@ ReadFloppyOne_Read:
 
 	jc ReadFloppyOne_Read		; If error occurs, CF will be set. Then read again
 
-	; Debug Print
-	mov ax, [es:10]
-	push ax
-	call WriteNumber
-	
 	ret
 
 ; #############################
 ;              Data
 ; #############################
-Str_Loading:			db 		"Booting From Floppy..."
+Str_Loading:			db 		"Boot From Floppy..."
 StrLen_Loading:			dw		$ - Str_Loading
+Str_Failed:			db		"No Loader"
+StrLen_Failed:			dw		$ - Str_Failed
 StrBuffer:			db		"XXXX"			; 4 Bytes Buffers
+LoaderFileName:			db		"loader  bin"		; 11 Bytes - loader.bin
 FloppySectorsPerTrack:		dw		18
 
 
