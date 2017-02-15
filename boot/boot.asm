@@ -49,11 +49,12 @@ LABEL_BOOTLOADER:
 
 	; ##### Boot Loader #####
 	; Assume only 16 files in the root folder area (sector 19 on floppy = 512 bytes / 32 = 16 files)
-	xor cx, cx
 
 	; Read Root Folder	
 	push word 19					; Prepare for reading root folder area
 	call ReadFloppyOne
+
+	xor cx, cx					; Clear cx as loop counter
 
 LoaderSearch_Loop:	
 	mov al, 32					; Set size of Root Entry Struct 
@@ -226,7 +227,7 @@ StrLen_Loading:			dw		$ - Str_Loading
 Str_Failed:			db		"No Loader"
 StrLen_Failed:			dw		$ - Str_Failed
 StrBuffer:			db		"XXXX"			; 4 Bytes Buffers
-LoaderFileName:			db		"loader  bin"		; 11 Bytes - loader.bin
+LoaderFileName:			db		"LOADER  BIN"		; 11 Bytes - loader.bin
 FloppySectorsPerTrack:		dw		18
 
 
