@@ -30,3 +30,8 @@ RootFolderAreaSize		equ		RootFolderEntryCount * RootFolderEntrySize / FloppyByte
 FileStartClusterOffset		equ		01ah
 DataAreaOffset			equ		RootFolderAreaSize + RootFolderAreaOffset
 DataAreaStartClusterNo		equ		2			; Data area starts from cluster 2
+EndClusterValue			equ		0ff8h
+FAT0AreaOffset			equ		1
+FAT0SectorCount			equ		8		
+
+

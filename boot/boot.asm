@@ -52,7 +52,8 @@ LABEL_BOOTLOADER:
 
 	; Read Root Folder	
 	push word RootFolderAreaOffset			; Prepare for reading root folder area
-	call ReadFloppyOne
+	push word 1					; Read 1 sector
+	call ReadFloppy
 
 	xor cx, cx					; Clear cx as loop counter
 
@@ -85,28 +86,44 @@ LoaderFound:
 	pop cx						; Get the index of current file
 	mov al, RootFolderEntrySize 			; Calculate current position in root folder area
 	mul cl
-	add ax, FileStartClusterOffset			; Calculate absolute position of start cluster of LOADER	
+	add ax, FileStartClusterOffset			; Calculate absolute position of stroing start cluster of LOADER	
 	mov bx, ax
 	
 	mov ax, BufferSegment				; Set es = BufferSegment
 	mov es, ax
-	mov ax, [es:bx]
-	push ax						; ### SAVE start cluster No. of Loader
+	mov ax, [es:bx]					; Get the start cluster of LOADER
 
+	xor cx, cx					; Clear cx and use it as counter for copying loader data
+LoadLoader:
+	push ax						; Save current cluster No.
 	sub ax, DataAreaStartClusterNo			; Calculate start position of LOADER data area
 	add ax, DataAreaOffset
-
+	mov [LoaderCopyPosition], cx			; Save cx
+	
 	push ax						; Pass the floppy sector position
-	call ReadFloppyOne				; Read one sector
+	push word 1					; Read 1 sector
+	call ReadFloppy
 
-	push word 0
-	push word 0
-	push word 512
+	mov cx, [LoaderCopyPosition]			; Get cx
+	push word 0					; Buffer position
+	push word cx					; Loader data position
+	push word FloppyBytesPerSector			; Length of data needed to copy
 	call CopyLoader
 
-	pop ax						; ### Discard SAVE
+	mov cx, [LoaderCopyPosition]
+	add cx, FloppyBytesPerSector			; cx += FloppyBytesPerSector (= 512)
+	;jo LoadLoaderOverflow				; If loader is more than 64KB, overflow
+	mov [LoaderCopyPosition], cx			; Save cx	
+
+	; Check next cluster(sector)
+	call GetNextCluster
+	cmp ax, EndClusterValue				; Compare with EndClusterValue
+	jb LoadLoader					; ax < EndClusterValue => Continue Read
 
 	jmp LoaderSegment:LoaderOffset 
+
+LoadLoaderOverflow:
+	; jmp $
 
 ; #############################
 ;          Subrouting
@@ -239,15 +256,61 @@ CopyLoader_Loop:
 
 	ret
 
+; Get Next Cluster of a File
+; Order of pushing stack: Current cluster No.
+; Return value : ax
+GetNextCluster:
+
+	push word FAT0AreaOffset	; Read FAT0
+	push word FAT0SectorCount
+	call ReadFloppy
+
+	pop ax				; Get return address
+	pop bx				; Get current cluster
+	push ax				; Restore return address
+
+	mov ax, BufferSegment		; Set segment register of buffer
+	mov es, ax
+
+	mov ax, bx			; Copy bx
+	and ax, 1			; Check the cluster No. is odd or even
+	cmp ax, 0
+	jz GetNextCluster_Even
+	
+	; Odd
+	dec bx				; Change current cluster No. to even number	
+	shr bx, 1			; bx / 2
+	mov ax, bx			; bx * 3 + 1
+	add ax, bx
+	add ax, bx
+	inc ax
+	mov bx, ax
+	mov ax, [es:bx]			; Get next cluster No.
+	shr ax, 4			; Only 12 bits indicate the next cluster
+	ret
+	
+GetNextCluster_Even:
+	shr bx, 1			; bx / 2
+	mov ax, bx			; bx * 3
+	add ax, bx
+	add ax, bx
+	mov bx, ax
+	mov ax, [es:bx]			; Get next cluster No.
+	and ax, 0fffh			; Only 12 bits indicate the next cluster No.
+	
+	ret
+	
 ; ### Floppy Disk Utilities ###
 
-; Read One Sector of Floppy Disk
-; Order of pushing stack: Sector position 
-ReadFloppyOne:
+; Read N Sector of Floppy Disk
+; Order of pushing stack: Sector position, count of sectors 
+ReadFloppy:
 	pop bx				; Save return address
+	pop cx				; Get count of sectors
         pop ax				; Get sector position (AX as dividend)
 	push bx				; Restore return address
-        
+	push cx				; Save count of sectors        
+
 	; Calculate physical position
 	mov bl, FloppySectors		; bl is divisor
 	div bl				; ax / bl = al(quotient) ... ah(remainder)
@@ -263,25 +326,29 @@ ReadFloppyOne:
 	mov es, bx
 	mov bx, BufferOffset
 
-ReadFloppyOne_Read:
+ReadFloppy_Read:
+	pop ax				; Restore count of sectors
+	push ax				; Save count of sectors
 	mov ah, 02h			; Set Int 13h
-	mov al, 1			; Read 1 sector
+	; Note: al will be the count of sectors (0~15)
 
 	int 13h
 
-	jc ReadFloppyOne_Read		; If error occurs, CF will be set. Then read again
+	jc ReadFloppy_Read		; If error occurs, CF will be set. Then read again
 
+	pop ax				; Clean the stack
 	ret
 
 ; #############################
 ;              Data
 ; #############################
-Str_Loading:			db 		"Boot From Floppy..."
+Str_Loading:			db 		"Load"
 StrLen_Loading:			dw		$ - Str_Loading
 Str_Failed:			db		"No Loader"
 StrLen_Failed:			dw		$ - Str_Failed
 StrBuffer:			db		"XXXX"			; 4 Bytes Buffers
 LoaderFileName:			db		"LOADER  BIN"		; 11 Bytes - loader.bin
+LoaderCopyPosition:		dw		0
 
 ; End
 times 510 - ($ - $$)	db 	0 
