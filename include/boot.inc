@@ -19,3 +19,14 @@ FloppyHeaders			equ		2
 FloppySectors			equ		18
 FloppyTotalSectors		equ		2880
 FloppyBytesPerSector		equ		512
+
+; FAT12 Related
+RootFolderAreaOffset		equ		19
+RootFolderEntrySize		equ		32
+RootFolderFileNameLength	equ		11
+RootFolderCheckFileCount	equ		FloppyBytesPerSector / RootFolderEntrySize
+RootFolderEntryCount		equ		224
+RootFolderAreaSize		equ		RootFolderEntryCount * RootFolderEntrySize / FloppyBytesPerSector
+FileStartClusterOffset		equ		01ah
+DataAreaOffset			equ		RootFolderAreaSize + RootFolderAreaOffset
+DataAreaStartClusterNo		equ		2			; Data area starts from cluster 2

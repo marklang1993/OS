@@ -16,8 +16,8 @@ BytesPerSector  	dw			512			; (2 Bytes) Count of Bytes per Sector
 SectorPerCluster	db			1			; (1 Byte) Count of Sectors per Cluster
 SectorsOfBoot		dw			1			; (2 Bytes) Count of Sectors for Booting
 FATsCount		db 			2			; (1 Byte) Count of FATs
-RootEntryCount		dw			224			; (2 Bytes) Count of Root Entries
-TotalSectors		dw			2880			; (2 Bytes)	Total count of sectors(2*80*18)
+RootEntryCount		dw			RootFolderEntryCount	; (2 Bytes) Count of Root Entries
+TotalSectors		dw			2880			; (2 Bytes) Total count of sectors(2*80*18)
 MediaDescriptor		db			0xf0			; (1 Byte) Media Descriptor
 SectorsPerFAT		dw			9			; (2 Bytes) Count of sectors per FAT12
 SectorsPerTrack		dw			18			; (2 Bytes) Count of sectors per Track
@@ -29,7 +29,7 @@ Reserved		db			0			; (1 Byte) Not used
 ExtendedBootSign	db			29h			; (1 Byte) Extended Boot Sign = 29h
 VolumeID		dd			0			; (4 Bytes) ID of this volume
 VolumeLabel		db			'VolumeLabel'		; (11 Bytes) Label of this volume
-FileSystemType		db			'FAT12   '		; (8 Bytes)	File System Type
+FileSystemType		db			'FAT12   '		; (8 Bytes)File System Type
 
 ; Start of Boot Loader
 LABEL_BOOTLOADER:
@@ -51,27 +51,27 @@ LABEL_BOOTLOADER:
 	; Assume only 16 files in the root folder area (sector 19 on floppy = 512 bytes / 32 = 16 files)
 
 	; Read Root Folder	
-	push word 19					; Prepare for reading root folder area
+	push word RootFolderAreaOffset			; Prepare for reading root folder area
 	call ReadFloppyOne
 
 	xor cx, cx					; Clear cx as loop counter
 
 LoaderSearch_Loop:	
-	mov al, 32					; Set size of Root Entry Struct 
+	mov al, RootFolderEntrySize			; Set size of Root Entry Struct 
 	mul cl						; Calculate offset of current file name under root folder
 	
 	push cx						; Save loop variable
 
 	push word LoaderFileName			; Prepare for a string comparation 
 	push ax
-	push word 11					; Fix size : 11 bytes
+	push word RootFolderFileNameLength		; Maximum file name length 
 	call StringCompare
 	cmp cx, 0					; Check the string compare result
 	jz LoaderFound					; Loader found if cx == 0
 	
 	pop cx						; Restore cx
 	inc cx						; cx++
-	cmp cx, 16					; Check maximum file count
+	cmp cx, RootFolderCheckFileCount		; Check maximum file count
 	jnz LoaderSearch_Loop
 	
 	; Cannot find Loader
@@ -82,7 +82,31 @@ LoaderSearch_Loop:
 	jmp $
 
 LoaderFound:
-	jmp $						; Stop at here
+	pop cx						; Get the index of current file
+	mov al, RootFolderEntrySize 			; Calculate current position in root folder area
+	mul cl
+	add ax, FileStartClusterOffset			; Calculate absolute position of start cluster of LOADER	
+	mov bx, ax
+	
+	mov ax, BufferSegment				; Set es = BufferSegment
+	mov es, ax
+	mov ax, [es:bx]
+	push ax						; ### SAVE start cluster No. of Loader
+
+	sub ax, DataAreaStartClusterNo			; Calculate start position of LOADER data area
+	add ax, DataAreaOffset
+
+	push ax						; Pass the floppy sector position
+	call ReadFloppyOne				; Read one sector
+
+	push word 0
+	push word 0
+	push word 512
+	call CopyLoader
+
+	pop ax						; ### Discard SAVE
+
+	jmp LoaderSegment:LoaderOffset 
 
 ; #############################
 ;          Subrouting
@@ -155,7 +179,7 @@ ClearScreen:
 	ret;
 
 ; StringCompare
-; Order	of pushing stack: address of src string (ds), address of dst string (es), length in bytes
+; Order	of pushing stack: address of src string (ds:si), address of dst string (es:di), length in bytes
 ; Return val is in cx:       0     - equal, 
 ;                      more than 0 - not equal
 StringCompare:
@@ -165,7 +189,7 @@ StringCompare:
 	pop si				; get address of src string
 	push ax 
 
-	mov ax, 0			; set ds = 0
+	mov ax, cs			; set ds = cs = 0h
 	mov ds, ax
 	mov ax, BufferSegment		; set es = BufferSegment
 	mov es, ax
@@ -185,6 +209,36 @@ StringCompare_Loop:
 StringCompare_EndLoop:
 	ret
 
+; CopyLoader
+; Order	of pushing stack: address of buffer position (ds:si), address of loader position (es:di), length in bytes
+CopyLoader:
+	pop ax				; Save return address
+	pop cx				; Get length
+	pop di				; Get loader position
+	pop si				; Get buffer position
+	push ax				; Restore return address
+
+	push ds				; Save ds
+
+	mov ax, BufferSegment		; Set ds for src
+	mov ds, ax
+	mov ax, LoaderSegment		; Set es for dst
+	mov es, ax
+
+CopyLoader_Loop:
+	mov al, [ds:si]			; Read 1 byte from buffer
+	mov [es:di], al			; Write 1 byte to loader area
+	
+	inc si				; si++
+	inc di				; di++
+	dec cx				; cx--
+	cmp cx, 0			; Check finished
+	jnz CopyLoader_Loop
+
+	pop ds				; Restore ds
+
+	ret
+
 ; ### Floppy Disk Utilities ###
 
 ; Read One Sector of Floppy Disk
@@ -195,7 +249,7 @@ ReadFloppyOne:
 	push bx				; Restore return address
         
 	; Calculate physical position
-	mov bl, 18			; bl is divisor
+	mov bl, FloppySectors		; bl is divisor
 	div bl				; ax / bl = al(quotient) ... ah(remainder)
 	
 	mov ch, al			; Cylinder
@@ -228,8 +282,6 @@ Str_Failed:			db		"No Loader"
 StrLen_Failed:			dw		$ - Str_Failed
 StrBuffer:			db		"XXXX"			; 4 Bytes Buffers
 LoaderFileName:			db		"LOADER  BIN"		; 11 Bytes - loader.bin
-FloppySectorsPerTrack:		dw		18
-
 
 ; End
 times 510 - ($ - $$)	db 	0 
