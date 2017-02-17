@@ -2,9 +2,12 @@
 %include "pm.inc"
 
 ; GDT Area
+GDT_START:		Descriptor	0,		0,		0	; Empty desciptor for indexing
+GDT_FLAT_C:		Descriptor	0,		0fffffh,	TYPE_C_E | TYPE_C_R | S_DC | P_T | D_EC_32 | G_4KB
+GDT_FLAT_DRW:		Descriptor	0,		0fffffh,	TYPE_D_W | TYPE_D_R | S_DC | P_T | D_EC_32 | G_4KB
+GDT_VIDEO:		Descriptor	0b8000h,	0ffffh,		TYPE_D_W | TYPE_D_R | S_DC | P_T | DPL_3
 
-
-
+GDT_Length		equ		$ - GDT_START		; GDT Length
 
 
 

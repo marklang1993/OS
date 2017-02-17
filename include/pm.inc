@@ -5,6 +5,7 @@
 ;	Base Address	: 32 bits
 ;	Segment Limit	: 20 bits
 ;	Attribute	: See Attribute Flag (12 bits)
+; Each descriptor has size of 64 bits
 
 %macro	Descriptor 3	; 3 means this macro takes 3 parameters
 
@@ -17,7 +18,20 @@
 
 %endmacro
 
-; Each descriptor has size of 64 bits
+
+; ##### Descriptor Table Pointer (GDT / LDT)#####
+
+; Usage: Limit, Base
+;	Base Address	: 32 bits (base address of DT)
+;	Limit		: 16 bits (length of DT - 1)
+; Each descriptor table pointer has size of 48 bits
+
+%macro DTPointer 2	; 2 means this macro takes 2 parameters
+
+	dw	%2		; Descriptor Table Limit (bit 0-15)
+	dd	%1		; Base Address (bit 16 - 47)
+
+%endmacro
 
 
 ; ##### Attribute Flag #####
@@ -80,5 +94,12 @@ TYPE_G_386INT	equ		0eh		; 386 Interrupt Gate
 TYPE_G_386TRAP	equ		0fh		; 386 Trap Gate
 TYPE_G_TASK	equ		5		; Task Gate
 
+; ##### Selector Flags #####
+SEL_TI_L	equ		4		; LDT Selector
+SEL_TI_G	equ		0		; GDT Selector
+SEL_RPL_0	equ		0		; RPL 0
+SEL_RPL_1	equ		1		; RPL 1
+SEL_RPL_2	equ		2		; RPL 2
+SEL_RPL_3	equ		3		; RPL 3
 
 
