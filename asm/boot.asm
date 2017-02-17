@@ -87,49 +87,54 @@ LoaderFound:
 	mov al, RootFolderEntrySize 			; Calculate current position in root folder area
 	mul cl
 	add ax, FileStartClusterOffset			; Calculate absolute position of stroing start cluster of LOADER	
-	mov bx, ax
-	
-	mov ax, BufferSegment				; Set es = BufferSegment
+	mov bx, ax					; Set the offset of the area storing start cluster No.
+	mov ax, BufferSegment				; Set the segment of the area storing start cluster No.
 	mov es, ax
 	mov ax, [es:bx]					; Get the start cluster of LOADER
 
 	xor cx, cx					; Clear cx and use it as counter for copying loader data
+
 LoadLoader:
 	push ax						; Save current cluster No.
 	sub ax, DataAreaStartClusterNo			; Calculate start position of LOADER data area
 	add ax, DataAreaOffset
 	mov [LoaderCopyPosition], cx			; Save cx
-	
+
 	push ax						; Pass the floppy sector position
 	push word 1					; Read 1 sector
 	call ReadFloppy
 
-	mov cx, [LoaderCopyPosition]			; Get cx
+	mov cx, [LoaderCopyPosition]			; Restore cx
 	push word 0					; Buffer position
 	push word cx					; Loader data position
 	push word FloppyBytesPerSector			; Length of data needed to copy
 	call CopyLoader
 
-	mov cx, [LoaderCopyPosition]
+	mov cx, [LoaderCopyPosition]			; Restore cx
 	add cx, FloppyBytesPerSector			; cx += FloppyBytesPerSector (= 512)
-	;jo LoadLoaderOverflow				; If loader is more than 64KB, overflow
+	jo LoadLoaderOverflow				; If loader is more than 64KB, overflow
 	mov [LoaderCopyPosition], cx			; Save cx	
 
 	; Check next cluster(sector)
 	call GetNextCluster
+	mov cx, [LoaderCopyPosition]			; Restore cx
 	cmp ax, EndClusterValue				; Compare with EndClusterValue
 	jb LoadLoader					; ax < EndClusterValue => Continue Read
 
-	jmp LoaderSegment:LoaderOffset 
+	jmp LoaderSegment:LoaderOffset			; GO TO LOADER 
 
 LoadLoaderOverflow:
-	; jmp $
+	push word Str_Overflow
+	push word [StrLen_Overflow]
+	push word 0100h					; Set 1 Row : 0 Column			
+	call WriteString
+	jmp $
 
 ; #############################
-;          Subrouting
+;          Utilities
 ; #############################
 
-; WriteString
+; # WriteString
 ; Order of pushing stack: address of string, length, Row:Column
 WriteString:
 	pop ax				; Save return address
@@ -138,7 +143,7 @@ WriteString:
 	pop bp				; Get the address of String from stack
 	push ax				; Restore return address
 
-	mov ax, 0h			; Set es = 0000h since the string address is es:bp
+	mov ax, cs			; Set es = cs since the segment of string and code is same, and display uses [es:bp]
 	mov es, ax
 	mov ah, 13h			; Parameter: show string
 	mov al, 01h			; Parameter: continue to show
@@ -146,45 +151,7 @@ WriteString:
 	int 10h			
 	ret			
 
-; WriteNumber(16-bit)
-; Order of pushing stack: 16-bit number
-WriteNumber:
-	pop ax				; Save return address
-	pop bx				; Get Number
-	push ax				; Restore return address
-	
-	xor cx, cx			; Clear loop register
-	xor edx, edx			; Clear result register
-
-WriteNumber_Loop:	
-	xor ax, ax			; Clear ax
-	mov al, bl			
-	shr bx, 4			; Let next digit be on the rightmost position
-	
-	and al, 0fh			; Get the front digit
-	add al, 48			; Add the offset
-	
-	cmp al,	57			; Check decimal digit or hexdecimal digit
-	jbe WriteNumber_EndLoop		; Not a hexdecimal digit
-	add al, 7			; Add the offset to become a real hexdecimal digit for char display
-
-WriteNumber_EndLoop:	
-	shl edx, 8			; Shift the former result to higher position
-	add dl, al			; Save the result
-	inc cx				; Loop register increase	
-	cmp cx, 4			; Totally 4 digits for 16-bit number
-	jne WriteNumber_Loop		; Continue Loop
-
-
-	mov [StrBuffer], edx
-	push word StrBuffer		; Go to display 
-	push word 4
-	push word 0100h
-	call WriteString
-
-	ret
-
-; ClearScreen
+; # ClearScreen
 ClearScreen:
 	mov ah, 06h;		
 	mov al, 00h;
@@ -195,7 +162,7 @@ ClearScreen:
 	int 10h;
 	ret;
 
-; StringCompare
+; # StringCompare
 ; Order	of pushing stack: address of src string (ds:si), address of dst string (es:di), length in bytes
 ; Return val is in cx:       0     - equal, 
 ;                      more than 0 - not equal
@@ -226,7 +193,7 @@ StringCompare_Loop:
 StringCompare_EndLoop:
 	ret
 
-; CopyLoader
+; # CopyLoader
 ; Order	of pushing stack: address of buffer position (ds:si), address of loader position (es:di), length in bytes
 CopyLoader:
 	pop ax				; Save return address
@@ -256,7 +223,7 @@ CopyLoader_Loop:
 
 	ret
 
-; Get Next Cluster of a File
+; # Get Next Cluster of a File
 ; Order of pushing stack: Current cluster No.
 ; Return value : ax
 GetNextCluster:
@@ -272,37 +239,45 @@ GetNextCluster:
 	mov ax, BufferSegment		; Set segment register of buffer
 	mov es, ax
 
-	mov ax, bx			; Copy bx
-	and ax, 1			; Check the cluster No. is odd or even
-	cmp ax, 0
+	mov ax, bx			; Copy bx, use ax as base number
+	mov dx, bx			; Copy bx, use dx as ODD/EVEN flag
+	and dx, 1			; Check the cluster No. is odd or even
+	cmp dx, 0
 	jz GetNextCluster_Even
+
+	; For odd No., -> bx = (ax - 1) / 2 * 3 + 1	mask: fff0h
+	; For even No. -> bx = ax / 2 * 3		mask: 0fffh
 	
 	; Odd
-	dec bx				; Change current cluster No. to even number	
-	shr bx, 1			; bx / 2
-	mov ax, bx			; bx * 3 + 1
-	add ax, bx
-	add ax, bx
-	inc ax
-	mov bx, ax
-	mov ax, [es:bx]			; Get next cluster No.
-	shr ax, 4			; Only 12 bits indicate the next cluster
-	ret
-	
+	dec ax				; Change current cluster No. to even number
+
 GetNextCluster_Even:
-	shr bx, 1			; bx / 2
-	mov ax, bx			; bx * 3
-	add ax, bx
-	add ax, bx
-	mov bx, ax
+	shr ax, 1			; ax / 2
+	mov bx, ax			; bx = ax * 3
+	add bx, ax
+	add bx, ax
+
+	cmp dx, 1
+	jz GetNextCluster_Odd
+
 	mov ax, [es:bx]			; Get next cluster No.
 	and ax, 0fffh			; Only 12 bits indicate the next cluster No.
 	
 	ret
 	
-; ### Floppy Disk Utilities ###
+GetNextCluster_Odd:
+	inc bx
 
-; Read N Sector of Floppy Disk
+	mov ax, [es:bx]			; Get next cluster No.
+	shr ax, 4			; Only 12 bits indicate the next cluster
+	ret
+	
+
+; #############################
+;     Floppy Disk Utilities
+; #############################
+
+; # Read N Sector of Floppy Disk
 ; Order of pushing stack: Sector position, count of sectors 
 ReadFloppy:
 	pop bx				; Save return address
@@ -342,11 +317,12 @@ ReadFloppy_Read:
 ; #############################
 ;              Data
 ; #############################
-Str_Loading:			db 		"Load"
+Str_Loading:			db 		"Boot from floppy..."
 StrLen_Loading:			dw		$ - Str_Loading
-Str_Failed:			db		"No Loader"
+Str_Failed:			db		"NO LOADER"
 StrLen_Failed:			dw		$ - Str_Failed
-StrBuffer:			db		"XXXX"			; 4 Bytes Buffers
+Str_Overflow:			db		"LOADER IS TOO BIG"
+StrLen_Overflow:		dw		$ - Str_Overflow
 LoaderFileName:			db		"LOADER  BIN"		; 11 Bytes - loader.bin
 LoaderCopyPosition:		dw		0
 

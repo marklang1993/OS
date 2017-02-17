@@ -13,6 +13,11 @@ BufferOffset			equ 		0000h
 LoaderSegment			equ		03000h
 LoaderOffset   			equ 		0000h
 
+; Kernel.bin - Address Range	(4000h:0000h~4000h:FFFFh = 64 KB)
+KernelSegment			equ		04000h
+KernelOffset			equ		0000h
+
+
 ; Floppy Related
 FloppyCylinders			equ		80
 FloppyHeaders			equ		2
