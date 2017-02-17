@@ -1,5 +1,5 @@
 %include "boot.inc"
-%include "gdt.inc"
+%include "pm.inc"
 
 ; GDT Area
 
