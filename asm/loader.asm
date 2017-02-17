@@ -1,6 +1,8 @@
 %include "boot.inc"
 %include "pm.inc"
 
+[SECTION .gdt]
+
 ; GDT Area
 GDT_START:		Descriptor	0,		0,		0	; Empty desciptor for indexing
 GDT_FLAT_C:		Descriptor	0,		0fffffh,	TYPE_C_E | TYPE_C_R | S_DC | P_T | D_EC_32 | G_4KB
@@ -8,13 +10,16 @@ GDT_FLAT_DRW:		Descriptor	0,		0fffffh,	TYPE_D_W | TYPE_D_R | S_DC | P_T | D_EC_3
 GDT_VIDEO:		Descriptor	0b8000h,	0ffffh,		TYPE_D_W | TYPE_D_R | S_DC | P_T | DPL_3
 
 GDT_Length		equ		$ - GDT_START		; GDT Length
+GDT_Pointer:		DTPointer	LoaderSegment * 10h + GDT_START,	GDT_Length - 1
+
+; GDT Selector
+GDT_FLAT_C_Selector	equ		GDT_FLAT_C - GDT_START
+GDT_FLAT_DRW_Selector	equ		GDT_FLAT_DRW - GDT_START
+GDT_VIDEO_Selector	equ		(GDT_VIDEO - GDT_START) | SEL_RPL_3
 
 
-
-
-
-
-
+[SECTION .text16]
+[BITS 16]		; align with 16 bits
 LABEL_LOADER:
 	mov ax, cs					; Get code segment address
 	mov ds, ax					; Set data segment address
@@ -101,15 +106,9 @@ LoadKernel:
 	mov cx, [KernelCopyPosition]			; Restore cx
 	cmp ax, EndClusterValue				; Compare with EndClusterValue
 	jb LoadKernel					; ax < EndClusterValue => Continue Read
-
-
-KernelLoaded:
-
-	call FloppyMotorOff				; Turn off the floppy motor
-
 	
-	jmp KernelSegment:KernelOffset			; GO TO KERNEL
-		
+	; Kernel Loaded
+	jmp KernelLoaded				; Jump to KernelLoaded
 
 LoadKernelOverflow:
 	push word Str_Overflow
@@ -117,7 +116,26 @@ LoadKernelOverflow:
 	push word 0200h					; Set 2 Row : 0 Column			
 	call WriteString
 	
-	jmp $  
+	jmp $ 						; Stop here 
+
+
+KernelLoaded:
+	call FloppyMotorOff				; Turn off the floppy motor
+
+	; ##### Switch to Protect Mode  #####
+	lgdt [GDT_Pointer]				; Load GDTR
+	cli						; Turn off interrupt
+	
+	in al, 92h					; Turn on A20	
+	or al, 2
+	out 92h, al
+
+	mov eax, cr0					; Set cr0 PE bit
+	or eax, 1
+	mov cr0, eax
+
+	; Jump to 32bit code (enter into protect mode)
+	jmp dword GDT_FLAT_C_Selector:(LoaderSegment * 10h + LABEL_LOADER_32BIT_CODE)
 
 ; #############################
 ;          Subrouting
@@ -358,6 +376,8 @@ FloppyMotorOff:
 	
 	ret
 
+[SECTION .data16]
+[BITS 16]
 
 Str_LoaderRunning:		db		"Loader is running..."
 StrLen_LoaderRunning:		dw		$ - Str_LoaderRunning
@@ -369,3 +389,20 @@ StrLen_Overflow:		dw		$ - Str_Overflow
 StrBuffer:			db		"XXXX"			; 4 Bytes Buffers
 KernelFileName:			db		"KERNEL  BIN"		; 11 Bytes - kernel.bin
 KernelCopyPosition:		dw		0
+
+
+[SECTION .text32]
+[BITS 32]
+
+LABEL_LOADER_32BIT_CODE:
+
+	mov ax, GDT_VIDEO_Selector
+	mov gs, ax
+	
+	mov ah, 0fh
+	mov al, 'P'
+
+	mov [gs:((80 * 3 + 0) * 2)], ax
+	jmp $
+
+
