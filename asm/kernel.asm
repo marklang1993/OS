@@ -41,4 +41,3 @@ WriteString:
 Str_KernelRunning:		db		"Kernel is running..."
 StrLen_KernelRunning:		dw		$ - Str_KernelRunning
 
-times 65535 db "A"
