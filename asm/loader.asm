@@ -103,6 +103,7 @@ LoadKernelOverflow:
 
 KernelLoaded:
 	call FloppyMotorOff				; Turn off the floppy motor
+	call GetARDS					; Get ARDS
 
 	; ##### Switch to Protect Mode  #####
 	lgdt [GDT_Pointer]				; Load GDTR
@@ -138,7 +139,6 @@ StrLen_FindKernelFailed:	dw		$ - Str_FindKernelFailed
 Str_Overflow:			db		"KERNEL IS TOO BIG"
 StrLen_Overflow:		dw		$ - Str_Overflow
 
-StrBuffer:			db		"XXXX"			; 4 Bytes Buffers
 KernelFileName:			db		"KERNEL  BIN"		; 11 Bytes - kernel.bin
 KernelCopyPosition:		dw		0
 
@@ -184,7 +184,7 @@ LABEL_LOADER_32BIT_CODE:
 	mov ah, 0fh
 	mov al, 'P'
 
-	mov [gs:((80 * 3 + 0) * 2)], ax
+	mov [gs:((80 * 2 + 0) * 2)], ax
 	jmp $
 
 
