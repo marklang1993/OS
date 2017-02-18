@@ -98,17 +98,45 @@ GetARDS_Next:
 	push edx
 	push di
 	push es
-
 	call DisplayARDS		; Go to display current ARDS
-
 	pop es				; Restore registers
 	pop di
 	pop edx
 	pop ecx
 	pop ebx
 
+	; Calculate Memory Size
+	push ebx			; Save registers
+	push di
+	push es
+	call CalMemSizeByARDS
+	pop es				; Restore registers
+	pop di
+	pop ebx
+
 	cmp ebx, 0			; Check : more ARDS?
 	jne GetARDS_Next		
+
+	; Print Memory Size
+	mov ax, [DisplayARDS_Pos]	; Adjust display position - Row
+	inc ah
+	push ax				; Save ax
+
+	; Display Memory Size String
+	push word Str_DisplayMemSize
+	push word [StrLen_DisplayMemSize]
+	push ax
+	call WriteString
+
+	pop ax				; Restore ax
+	mov bx, [StrLen_DisplayMemSize]	; Adjust display position - Col
+	add al, bl
+	
+	mov ebx, [PhysicalMemorySize]	; Get Physical Memory Size Value
+	; Display Memory Size
+	push ebx
+	push ax
+	call WriteNumberEx
 
 	ret
 	
@@ -125,6 +153,11 @@ GetARDS_Failed:
 ; # Display Address Range Descriptor Structures (ARDS)
 DisplayARDS:
 	mov cx, [DisplayARDS_Pos]	; Get display position
+
+	mov ax, BufferSegment		; Set es:di
+	mov es, ax
+	mov ax, BufferOffset
+	mov di, ax
 	
 DisplayARDS_Loop:
 	mov eax, [es:di]		; Get a 32-bit value from ARDS
@@ -155,6 +188,40 @@ DisplayARDS_Loop:
 	ret
 
 
+; # Calculate MemorySize By ARDS
+CalMemSizeByARDS:
+	; Note : This is a 32-bit OS, so high word (32-63 bit) will be ignored
+	mov al, [PhysicalMemoryAccuStop]
+	cmp al, 0			; Check stop flag
+	je CalMemSizeByARDS_Run		; Stop flag is not set -> go to calculate
+	
+	ret
+
+CalMemSizeByARDS_Run:
+	mov ax, BufferSegment		; Set es:di
+	mov es, ax
+	mov ax, BufferOffset
+	mov di, ax	
+
+	mov eax, [es:di]		; Get base address (low word) from ARDS
+	add di, 8			; Move pointer to Length (low word)
+	mov ebx, [es:di]		; Get length (low word) from ARDS
+	add eax, ebx			; Calculate new memory size
+	add di, 8			; Move pointer to Type
+	mov ebx, [es:di]		; Get type
+
+	cmp ebx, 3			; Check is this the last valid ARDS
+	jnz CalMemSizeByARDS_Update
+	
+	; Set stop flag
+	mov byte [PhysicalMemoryAccuStop], 1
+
+CalMemSizeByARDS_Update:
+	mov [PhysicalMemorySize], eax		; Update current memory size
+
+	ret
+	
+
 ; #############################
 ;     Floppy Disk Utilities
 ; #############################
@@ -184,4 +251,8 @@ Str_GetARDSFailed:		db		"Get ARDS Failed"
 StrLen_GetARDSFailed:		dw		$ - Str_GetARDSFailed
 Str_DisplayARDSTitle:		db		"   Base Address  |      Length     |  Type"
 StrLen_DisplayARDSTitle:	dw		$ - Str_DisplayARDSTitle
+Str_DisplayMemSize:		db		"Physical Memory Size: "
+StrLen_DisplayMemSize:		dw		$ - Str_DisplayMemSize
 DisplayARDS_Pos:		dw		0400h
+PhysicalMemorySize:		dd		0h			; Save memory size after GetARDS
+PhysicalMemoryAccuStop:		db		0h			; 0 -- Continue to calculate; 1 -- Stop
