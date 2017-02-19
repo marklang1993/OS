@@ -180,11 +180,56 @@ LABEL_LOADER_32BIT_CODE:
 	mov ax, GDT_VIDEO_Selector		; Set gs for video memory
 	mov gs, ax
 
-	
+	; Display "P" for protect mode
 	mov ah, 0fh
 	mov al, 'P'
-
 	mov [gs:((80 * 2 + 0) * 2)], ax
+
+
+	; # Enable pageing
+	mov eax, [ds:(LoaderBaseOffset + PhysicalMemorySize)]	; Get Memory Size
+	shr eax, 22						; Calculate PDE count -- div by 0x400000 = 4MB per PDE
+	mov [ds:(LoaderBaseOffset + PDECount)], eax		; Save PDE count
+
+	; Initialize Page Directory
+	push ecx						; Save PDE count
+	mov ecx, eax						; Use ecx as loop count of PDE
+	mov ebx, PDBaseAddress					; Set base address of page directory table
+	mov eax, PTBaseAddress					; Set base address of page table	
+	add eax, PAGE_P + PAGE_RW + PAGE_U + PDE_PS_4K		; Present + RW + User + 4K -- PDE
+InitPageDir_Loop:
+	mov [ebx], eax						; Save page directory entry
+	add ebx, PageEntrySize					; ebx++ -- Each page directory entry has size of 4 Bytes
+	add eax, PageSize					; eax++ -- Each page table has size of 4KB
+	loop InitPageDir_Loop
+
+	; Set ecx as loop counter
+	pop ecx
+	shl ecx, 10						; Count of PDE * 1024 --> shl 10 bits
+	mov ebx, PTBaseAddress					; Set base address of page table
+	xor eax, eax						; Set the base address of the memory space -- 0x0
+	add eax, PAGE_P + PAGE_RW + PAGE_U + PTE_ND		; Present + RW + User + Not Written -- PTE	
+InitPageTable_Loop:
+	mov [ebx], eax						; Save page table entry
+	add ebx, PageEntrySize					; ebx++ -- Each page table entry has size of 4 Bytes
+	add eax, PageSize					; eax++ -- Each page has size of 4KB
+	loop InitPageTable_Loop
+
+	; Enable paging
+	mov eax, PDBaseAddress					; Set cr3
+	mov cr3, eax
+	mov eax, cr0						; Set cr0
+	or eax, 8000000h					; PG -- 32nd bit
+	mov cr0, eax
+	
+	; Display "P" for paging	
+	mov ah, 0fh
+	mov al, 'P'
+	mov [gs:((80 * 2 + 2) * 2)], ax
+
 	jmp $
+
+
+
 
 

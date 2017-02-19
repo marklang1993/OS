@@ -1,3 +1,14 @@
+; ##### Paging Address#####
+PDBaseAddress			equ		0100000h		; Page directory base address
+PTBaseAddress			equ		PDBaseAddress + 01000h	; Page table start from 4KB page directory
+PDEMaxCount			equ		0400h			; 1024 entries
+PTEMaxCount			equ		0400h			; 1024 entries
+PageEntrySize			equ		4			; Each paging entries takes 4 bytes 
+PageSize			equ		01000h			; 1 page = 4KB
+
+PDECount:			dw		0h			; Initialized after getting memory size
+
+
 ; ##### Paging Attribute Flag #####
 
 ; # Shared by Page-Directory Entry, Page-Table Entry
