@@ -1,2 +1,6 @@
 # Target & Test Images
 *.img
+
+# geditor Temporary Files
+*.asm~
+*.inc~

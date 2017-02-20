@@ -18,7 +18,7 @@ LABEL_LOADER:
 	push word 0100h					; Set 1 Row : 0 Column
 	call WriteString
         
-	; ##### Load Kernel ######
+	; ##### Load Kernel Binary File ######
  
 	; Read Root Folder	
 	push word RootFolderAreaOffset			; Prepare for reading root folder area
@@ -27,7 +27,7 @@ LABEL_LOADER:
 
 	xor cx, cx					; Clear cx as loop counter
 
-KernelSearch_Loop:	
+KernelFileSearch_Loop:	
 	mov al, RootFolderEntrySize			; Set size of Root Entry Struct 
 	mul cl						; Calculate offset of current file name under root folder
 	
@@ -38,70 +38,70 @@ KernelSearch_Loop:
 	push word RootFolderFileNameLength		; Maximum file name length 
 	call StringCompare
 	cmp cx, 0					; Check the string compare result
-	jz KernelFound					; Kernel found if cx == 0
+	jz KernelFileFound				; Kernel file found if cx == 0
 	
 	pop cx						; Restore cx
 	inc cx						; cx++
 	cmp cx, RootFolderCheckFileCount		; Check maximum file count
-	jnz KernelSearch_Loop
+	jnz KernelFileSearch_Loop
 	
-	; Cannot find Kernel
-	push word Str_FindKernelFailed
-	push word [StrLen_FindKernelFailed]
+	; Cannot find kernel file
+	push word Str_FindKernelFileFailed
+	push word [StrLen_FindKernelFileFailed]
 	push word 0100h					; Set 1 Row : 0 Column			
 	call WriteString
 	jmp $						; Stop here
 
-KernelFound:
+KernelFileFound:
 	pop cx						; Get the index of current file
 	mov al, RootFolderEntrySize 			; Calculate current position in root folder area
 	mul cl
-	add ax, FileStartClusterOffset			; Calculate absolute position of stroing start cluster of KERNEL	
+	add ax, FileStartClusterOffset			; Calculate absolute position of stroing start cluster of kernel file	
 	mov bx, ax					; Set the offset of the area storing start cluster No.
 	mov ax, BufferSegment				; Set the segment of the area storing start cluster No.
 	mov es, ax
-	mov ax, [es:bx]					; Get the start cluster of KERNEL
+	mov ax, [es:bx]					; Get the start cluster of kernel file
 
-	xor cx, cx					; Clear cx and use it as counter for copying kernel data
+	xor cx, cx					; Clear cx and use it as counter for copying kernel file data
 
-LoadKernel:
+LoadKernelFile:
 	push ax						; Save current cluster No.
-	sub ax, DataAreaStartClusterNo			; Calculate start position of KERNEL data area
+	sub ax, DataAreaStartClusterNo			; Calculate start position of kernel data area
 	add ax, DataAreaOffset
-	mov [KernelCopyPosition], cx			; Save cx
+	mov [KernelFileCopyPosition], cx		; Save cx
 
 	push ax						; Pass the floppy sector position
 	push word 1					; Read 1 sector
 	call ReadFloppy
 
-	mov cx, [KernelCopyPosition]			; Restore cx
+	mov cx, [KernelFileCopyPosition]		; Restore cx
 	push word 0					; Buffer position
-	push word cx					; Kernel data position
+	push word cx					; Kernel file data position
 	push word FloppyBytesPerSector			; Length of data needed to copy
 	call CopyData
 
-	mov cx, [KernelCopyPosition]			; Restore cx
+	mov cx, [KernelFileCopyPosition]		; Restore cx
 	add cx, FloppyBytesPerSector			; cx += FloppyBytesPerSector (= 512)
-	jo LoadKernelOverflow				; If Kernel is more than 64KB, overflow
-	mov [KernelCopyPosition], cx			; Save cx	
+	jo LoadKernelFileOverflow			; If kernel file is more than 64KB, overflow
+	mov [KernelFileCopyPosition], cx		; Save cx	
 
 	; Check next cluster(sector)
 	call GetNextCluster
-	mov cx, [KernelCopyPosition]			; Restore cx
+	mov cx, [KernelFileCopyPosition]		; Restore cx
 	cmp ax, EndClusterValue				; Compare with EndClusterValue
-	jb LoadKernel					; ax < EndClusterValue => Continue Read
+	jb LoadKernelFile				; ax < EndClusterValue => Continue Read
 	
-	; Kernel Loaded
-	jmp KernelLoaded				; Jump to KernelLoaded
+	; Kernel Bin Loaded
+	jmp KernelFileLoaded				; Jump to KernelLoaded
 
-LoadKernelOverflow:
+LoadKernelFileOverflow:
 	push word Str_Overflow
 	push word [StrLen_Overflow]
 	push word 0200h					; Set 2 Row : 0 Column			
 	call WriteString
 	jmp $ 						; Stop here
 
-KernelLoaded:
+KernelFileLoaded:
 	call FloppyMotorOff				; Turn off the floppy motor
 	call GetARDS					; Get ARDS
 
@@ -124,7 +124,7 @@ KernelLoaded:
 ;      Externel Functions
 ; #############################
 
-CopyDataDstSegment		equ		KernelSegment
+CopyDataDstSegment		equ		KernelFileSegment
 %include "utility_boot.inc"
 %include "utility_loader.inc"
 
@@ -134,13 +134,13 @@ CopyDataDstSegment		equ		KernelSegment
 
 Str_LoaderRunning:		db		"Loader is running..."
 StrLen_LoaderRunning:		dw		$ - Str_LoaderRunning
-Str_FindKernelFailed:		db		"NO KERNEL"
-StrLen_FindKernelFailed:	dw		$ - Str_FindKernelFailed
+Str_FindKernelFileFailed:	db		"NO KERNEL"
+StrLen_FindKernelFileFailed:	dw		$ - Str_FindKernelFileFailed
 Str_Overflow:			db		"KERNEL IS TOO BIG"
 StrLen_Overflow:		dw		$ - Str_Overflow
 
 KernelFileName:			db		"KERNEL  BIN"		; 11 Bytes - kernel.bin
-KernelCopyPosition:		dw		0
+KernelFileCopyPosition:		dw		0
 
 
 [SECTION .gdt]
@@ -227,9 +227,172 @@ InitPageTable_Loop:
 	mov al, 'P'
 	mov [gs:((80 * 2 + 2) * 2)], ax
 
-	jmp $
+	; Copy kernel
+	call CopyKernel
+
+	; Jump to kernel
+	jmp dword eax
 
 
+; #############################
+;    Utilities (Protect Mode)
+; #############################
+
+; C calling convention
+; Order of pushing stack: from right to left
+; Caller cleans the stack
+; NOTE: ss is different with cs, ds, es
+
+; ##### High Address #####
+; |...				|
+; |parameters from caller	|	+ 8 * n
+; |return address		|	+ 4
+; |caller's ebp			|	+ 0
+; --------------------------------ebp
+; |local variables		|	- 4 * n
+; |saved changed registers	|
+; |...				|
+; ##### Low Address #####
+
+; # void Memcpy(void *src, void *dst, u32 size);
+; @ src: source address in ds
+; @ dst: destination address in ds
+; @ size: size of memory copied
+Memcpy:
+	push ebp		; Save frame pointer
+	mov ebp, esp		; Set new frame pointer
+
+	push eax		; Save changed registers
+	push ecx
+	push esi
+	push edi
+
+	mov ecx, [ss:(ebp+16)]	; Get size of memory needed to be copied
+	mov edi, [ss:(ebp+12)]	; Get dst address (wrt. ds)
+	mov esi, [ss:(ebp+8)]	; Get src address (wrt. ds)
+
+Memcpy_Loop:
+	mov ax, [ds:esi]	; Get 1 byte from src memory
+	mov [ds:edi], ax	; Write 1 byte to dst memory
+	inc esi			; esi++
+	inc edi			; edi++
+	loop Memcpy_Loop
+
+	pop edi			; Restore changed registers
+	pop esi
+	pop ecx
+	pop eax
+
+	pop ebp			; Restore ebp
+	ret
+
+
+; # void* CopyKernel();
+; @ RETURN: kernel entry point address in cs
+CopyKernel:
+	push ebp		; Save frame pointer
+	mov ebp, esp		; Set new frame pointer
+
+	; # Local variables
+	push dword 0		; Kernel entry point address
+	push dword 0		; Program header table start offset
+	push dword 0		; Program header table size	
+	push dword 0		; Program header table count
+
+	push eax		; Save changed registers
+	push ebx
+	push ecx
+	
+	; Read ELF header
+	mov ebx, KernelFileBaseOffset		; Get kernel elf file base address
+	mov eax, [ds:(ebx+0x18)]		; Get & save kernel entry point
+	mov [ss:(ebp-4)], eax
+	mov eax, [ds:(ebx+0x1c)]		; Get & save program header table start offset
+	mov [ss:(ebp-8)], eax
+	xor eax, eax				; Get & save program header table size
+	mov ax, [ds:(ebx+0x2a)]
+	mov [ss:(ebp-12)], eax
+	xor eax, eax				; Get & save program header table count
+	mov ax, [ds:(ebx+0x2c)]
+	mov [ss:(ebp-16)], eax
+
+
+	; Read program header table
+	mov ecx, [ss:(ebp-16)]		; Get count of program header
+	mov ebx, [ss:(ebp-8)]		; Get program header table start offset
+	add ebx, KernelFileBaseOffset	; Calculate program header table start address
+
+CopyKernel_ProcessPH_Loop:
+	push ebx			; Call CopyKernel_ProgramSegment & Store offset
+	call CopyKernel_ProgramSegment
+	pop ebx				; Clean stack & Get offset
+	
+	mov eax, [ss:(ebp-12)]		; Goto next program header
+	add ebx, eax
+	
+	loop CopyKernel_ProcessPH_Loop
+
+	; # Clean & Return value
+	pop ecx			; Restore changed registers
+	pop ebx
+	pop eax	
+
+	mov eax, [ss:(ebp-4)]	; Get kernel entry point as return value
+	add esp, 16		; Clear local variables
+	pop ebp			; Restore ebp
+	ret
+
+
+; # void CopyKernel_ProgramSegment(void* ph_addr);
+; @ ph_addr: Program header address in ds
+CopyKernel_ProgramSegment:
+	push ebp		; Save frame pointer
+	mov ebp, esp		; Set new frame pointer
+
+	; # Local variables
+	push dword 0		; Program segment offset in the file
+	push dword 0		; Program segment virtual address
+	push dword 0		; Program segment size
+
+	push eax		; Save changed registers
+	push ebx
+	push ecx
+
+	mov ebx, [ss:(ebp+8)]	; Get program header address
+
+	; Read program header
+	mov eax, [ds:(ebx+4)]	; Get & Save program segment offset
+	mov [ss:(ebp-4)], eax
+	mov eax, [ds:(ebx+8)]	; Get & Save program segment virtual address
+	mov [ss:(ebp-8)], eax
+	mov eax, [ds:(ebx+16)]	; Get & Save program segment size
+	mov [ss:(ebp-12)], eax
+
+	; Check Size
+	mov ecx, [ss:(ebp-12)]	; Get program segment size
+	cmp ecx, 0
+	jz CopyKernel_ProgramSegment_Done
+
+	; Copy
+	push ecx		; push size
+	mov ebx, [ss:(ebp-8)]	; Get & push program segment virtual address
+	push ebx
+	mov ebx, [ss:(ebp-4)]	; Get & process & push program segment offset
+	add ebx, KernelFileBaseOffset
+	push ebx
+
+	call Memcpy		; Copy the memory
+	add esp, 12		; Clean the call stack
+
+
+CopyKernel_ProgramSegment_Done:
+	pop ecx			; Restore changed registers
+	pop ebx
+	pop eax	
+
+	add esp, 12		; Clear local variables
+	pop ebp			; Restore ebp
+	ret
 
 
 
