@@ -1,6 +1,6 @@
-%include "boot.inc"
-%include "pm.inc"
-%include "page.inc"
+%include "boot/boot.inc"
+%include "boot/pm.inc"
+%include "boot/page.inc"
 
 [SECTION .text16]
 [BITS 16]		; align with 16 bits
@@ -125,8 +125,8 @@ KernelFileLoaded:
 ; #############################
 
 CopyDataDstSegment		equ		KernelFileSegment
-%include "utility_boot.inc"
-%include "utility_loader.inc"
+%include "boot/utility_boot.inc"
+%include "boot/utility_loader.inc"
 
 
 [SECTION .data16]
@@ -150,7 +150,7 @@ KernelFileCopyPosition:		dw		0
 GDT_START:		Descriptor	0,		0,		0	; Empty desciptor for indexing
 GDT_FLAT_C:		Descriptor	0,		0fffffh,	TYPE_C_E + TYPE_C_R + S_DC + P_T + D_EC_32 + G_4KB
 GDT_FLAT_DRW:		Descriptor	0,		0fffffh,	TYPE_D_W + TYPE_D_R + S_DC + P_T + D_EC_32 + G_4KB
-GDT_STACK_DRW:		Descriptor	010000h,	0fh,		TYPE_D_W + TYPE_D_R + S_DC + P_T + D_EC_32 + G_4KB
+GDT_STACK_DRW:		Descriptor	0,		01fh,		TYPE_D_W + TYPE_D_R + S_DC + P_T + D_EC_32 + G_4KB
 GDT_VIDEO:		Descriptor	0b8000h,	0ffffh,		TYPE_D_W + TYPE_D_R + S_DC + P_T + DPL_3
 
 GDT_Length		equ		$ - GDT_START		; GDT Length
@@ -254,7 +254,7 @@ InitPageTable_Loop:
 ; |...				|
 ; ##### Low Address #####
 
-; # void Memcpy(void *src, void *dst, u32 size);
+; # void Memcpy(void *src, void *dst, uint32 size);
 ; @ src: source address in ds
 ; @ dst: destination address in ds
 ; @ size: size of memory copied

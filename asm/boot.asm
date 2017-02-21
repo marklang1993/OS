@@ -1,7 +1,7 @@
 ; #############################
 ;          Boot Sector
 ; #############################
-%include "boot.inc"
+%include "boot/boot.inc"
 
 org 		7c00h					; Load to memory address 07c0h:0000h = 7c00h
 
@@ -135,7 +135,7 @@ LoadLoaderOverflow:
 ; #############################
 
 CopyDataDstSegment		equ		LoaderSegment
-%include "utility_boot.inc"
+%include "boot/utility_boot.inc"
 
 
 ; #############################
