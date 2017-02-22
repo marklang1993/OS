@@ -2,7 +2,7 @@ global memcpy
 
 [section .text]
 
-; # void Memcpy(void *src, void *dst, uint32 size);
+; # void memcpy(void *src, void *dst, uint32 size);
 ; @ src: source address in ds
 ; @ dst: destination address in ds
 ; @ size: size of memory copied

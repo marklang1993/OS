@@ -1,7 +1,7 @@
 # Makefile for OS #
 
 # Build Target
-OBJECT = kernel.o kernel_init.o memcpy.o print_string.o
+OBJECT = kernel.o kernel_init.o memcpy.o print_string.o io_port.o interrupt.o
 TARGET = boot.bin loader.bin kernel.bin
 TARGET_IMG = boot.img
 
@@ -18,7 +18,7 @@ LINKER = ld
 GCC = gcc
 GCC_FLAGS = -m32 -c -fno-builtin -I include/
 # NOTE: 0x50000(Defined by KernelBaseOffset) + 0x400 (ELF header and other headers)
-LINKER_FLAGS = -m elf_i386 -s -Ttext 0x50400
+LINKER_FLAGS = -s -m elf_i386 -Ttext 0x50400
 
 # Phony Targets
 .PHONY : all clean
@@ -48,6 +48,12 @@ memcpy.o : lib/memcpy.asm
 
 print_string.o :  lib/print_string.asm
 	   	  $(ASM) $(ASM_ELF_FLAGS) -o $@ $<
+
+io_port.o : lib/io_port.asm
+	    $(ASM) $(ASM_ELF_FLAGS) -o $@ $<
+
+interrupt.o : lib/interrupt.asm
+	    $(ASM) $(ASM_ELF_FLAGS) -o $@ $<
 
 boot.bin : asm/boot.asm
 	   $(ASM) $(ASM_FLAGS) -o $@ $<

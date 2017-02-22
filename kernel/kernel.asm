@@ -14,6 +14,7 @@ extern kernel_init
 
 ; External variables
 extern gdt_ptr
+extern idt_ptr
 
 global _start		; Export entry function for linker
 
@@ -27,6 +28,7 @@ _start:
 	sgdt [gdt_ptr]
 	call kernel_init
 	lgdt [gdt_ptr]
+	lidt [idt_ptr]
 
 	jmp KERNEL_GDT_FLAT_C_Selector:Kernel_Start 
 
@@ -51,6 +53,9 @@ Kernel_Start:
 	push Str_KernelRunning
 	call print_string
 	add esp, 16
+
+	sti		; Enable interrupt
+	int 80h		; Call 0x80 interrupt
 
 	jmp $
 

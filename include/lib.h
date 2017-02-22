@@ -4,6 +4,8 @@
 #ifndef _LIB_H_
 #define _LIB_H_
 
+#include "type.h"
+
 void memcpy(void *src, void *dst, uint32 size);
 void print_string(char *ptr_string, uint32 size, uint32 row, uint32 col);
 
