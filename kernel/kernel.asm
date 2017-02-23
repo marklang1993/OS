@@ -46,22 +46,12 @@ Kernel_Start:
 	push dword 0
 	popfd
 
-	; Display string
-	push dword 0
-	push dword 13
-	push dword [StrLen_KernelRunning]
-	push Str_KernelRunning
-	call print_string
-	add esp, 16
-
 	sti		; Enable interrupt
-	int 80h		; Call 0x80 interrupt
-
+	int 80h
+	
 	jmp $
 
 
 [section .data]
-Str_KernelRunning 		db	"Kernel is running!"
-StrLen_KernelRunning		dd	$ - Str_KernelRunning		; == 18
 
 

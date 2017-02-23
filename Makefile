@@ -1,7 +1,7 @@
 # Makefile for OS #
 
 # Build Target
-OBJECT = kernel.o kernel_init.o memcpy.o print_string.o io_port.o interrupt.o
+OBJECT = kernel.o kernel_init.o memcpy.o print_string.o io_port.o interrupt.o print.o
 TARGET = boot.bin loader.bin kernel.bin
 TARGET_IMG = boot.img
 
@@ -16,9 +16,10 @@ BOOT_IMG_FLAGS = bs=512 count=1 conv=notrunc
 MACHINE = bochs
 LINKER = ld
 GCC = gcc
-GCC_FLAGS = -m32 -c -fno-builtin -I include/
+GCC_FLAGS = -m32 -c -fno-builtin -fno-stack-protector -I include/
 # NOTE: 0x50000(Defined by KernelBaseOffset) + 0x400 (ELF header and other headers)
-LINKER_FLAGS = -s -m elf_i386 -Ttext 0x50400
+# LINKER_FLAGS = -s -m elf_i386 -Ttext 0x50400
+LINKER_FLAGS = -m elf_i386 -Ttext 0x50400
 
 # Phony Targets
 .PHONY : all clean
@@ -55,10 +56,13 @@ io_port.o : lib/io_port.asm
 interrupt.o : lib/interrupt.asm
 	    $(ASM) $(ASM_ELF_FLAGS) -o $@ $<
 
-boot.bin : asm/boot.asm
+print.o : lib/print.c
+	  $(GCC) $(GCC_FLAGS) -o $@ $<
+
+boot.bin : boot/boot.asm
 	   $(ASM) $(ASM_FLAGS) -o $@ $<
 
-loader.bin : asm/loader.asm
+loader.bin : boot/loader.asm
 	     $(ASM) $(ASM_FLAGS) -o $@ $<
 
 kernel.bin :

@@ -74,7 +74,7 @@ GetARDS:
 	; Display Title
 	push word Str_DisplayARDSTitle
 	push word [StrLen_DisplayARDSTitle]
-	push 0300h
+	push 0500h			; Row 05, Col 00
 	call WriteString
 	
 	; Initialize Registers
@@ -144,7 +144,7 @@ GetARDS_Failed:
 	; Display the failed message
 	push word Str_GetARDSFailed
 	push word [StrLen_GetARDSFailed]
-	push 0200h			; Row 02, Col 00
+	push 0500h			; Row 05, Col 00
 	call WriteString
 
 	jmp $				; Stop here	
@@ -253,6 +253,6 @@ Str_DisplayARDSTitle:		db		"   Base Address  |      Length     |  Type"
 StrLen_DisplayARDSTitle:	dw		$ - Str_DisplayARDSTitle
 Str_DisplayMemSize:		db		"Physical Memory Size: "
 StrLen_DisplayMemSize:		dw		$ - Str_DisplayMemSize
-DisplayARDS_Pos:		dw		0400h
+DisplayARDS_Pos:		dw		0600h
 PhysicalMemorySize:		dd		0h			; Save memory size after GetARDS
 PhysicalMemoryAccuStop:		db		0h			; 0 -- Continue to calculate; 1 -- Stop

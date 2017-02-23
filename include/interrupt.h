@@ -36,7 +36,7 @@ void cli(void);
 
 // Interrupt handlers
 typedef void (*int_handler)(void);		// Function pointer of interrupt handler
-extern void int_handler_default(void);
-extern void int_handler_clock(void);
+void int_handler_default(void);
+void int_handler_clock(void);
 
 #endif

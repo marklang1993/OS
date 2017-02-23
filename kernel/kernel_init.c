@@ -109,6 +109,14 @@ static void kernel_init_idt(void)
 */
 void kernel_init(void)
 {
+	char kernel_running_str[] = "Kernel is Running!";
+
 	kernel_init_gdt();
 	kernel_init_idt();
+
+	print_set_location(3, 0);
+	print_cstring(kernel_running_str);
+
+	print_set_location(4, 0);
+	print_uint32(12345678);
 }
