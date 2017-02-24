@@ -36,6 +36,28 @@ void cli(void);
 
 // Interrupt handlers
 typedef void (*int_handler)(void);		// Function pointer of interrupt handler
+
+void int_entry_division_fault(void);
+void int_entry_debug_exception(void);
+void int_entry_non_maskable_interrupt(void);
+void int_entry_break_point(void);
+void int_entry_overflow(void);
+void int_entry_out_bound(void);
+void int_entry_undefined_opcode(void);
+void int_entry_no_math_coprocessor(void);
+void int_entry_double_fault(void);
+void int_entry_reserved_coprocessor_seg_overbound(void);
+void int_entry_invalid_tss(void);
+void int_entry_segment_not_exist(void);
+void int_entry_stack_segment_fault(void);
+void int_entry_general_protect_fault(void);
+void int_entry_page_fault(void);
+void int_entry_reserved_intel(void);
+void int_entry_x87fpu_fault(void);
+void int_entry_alignment_check_fault(void);
+void int_entry_machine_check_abort(void);
+void int_entry_simd_float_fault(void);
+
 void int_handler_default(void);
 void int_handler_clock(void);
 

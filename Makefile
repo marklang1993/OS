@@ -1,7 +1,7 @@
 # Makefile for OS #
 
 # Build Target
-OBJECT = kernel.o kernel_init.o memcpy.o print_string.o io_port.o interrupt.o print.o
+OBJECT = kernel_asm.o kernel_c.o memcpy.o print_string.o io_port.o interrupt_asm.o interrupt_c.o print.o
 TARGET = boot.bin loader.bin kernel.bin
 TARGET_IMG = boot.img
 
@@ -38,10 +38,10 @@ clean :
 	   rm -f $(OBJECT)
 	   rm -f $(TARGET_IMG)
 
-kernel_init.o : kernel/kernel_init.c
+kernel_c.o : kernel/kernel.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
-kernel.o : kernel/kernel.asm
+kernel_asm.o : kernel/kernel.asm
 	   $(ASM) $(ASM_ELF_FLAGS) -o $@ $<
 
 memcpy.o : lib/memcpy.asm
@@ -53,8 +53,11 @@ print_string.o :  lib/print_string.asm
 io_port.o : lib/io_port.asm
 	    $(ASM) $(ASM_ELF_FLAGS) -o $@ $<
 
-interrupt.o : lib/interrupt.asm
+interrupt_asm.o : lib/interrupt.asm
 	    $(ASM) $(ASM_ELF_FLAGS) -o $@ $<
+
+interrupt_c.o : kernel/interrupt.c
+		$(GCC) $(GCC_FLAGS) -o $@ $<
 
 print.o : lib/print.c
 	  $(GCC) $(GCC_FLAGS) -o $@ $<

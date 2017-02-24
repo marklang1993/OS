@@ -9,8 +9,8 @@ KERNEL_GDT_VIDEO_Selector		equ		(4 << 3) + SEL_RPL_3
 [section .text]
 
 ; External functions
-extern print_string
 extern kernel_init
+extern kernel_main
 
 ; External variables
 extern gdt_ptr
@@ -49,9 +49,6 @@ Kernel_Start:
 	sti		; Enable interrupt
 	int 80h
 	
-	jmp $
-
-
-[section .data]
+	call kernel_main ; Jmp to kernel_main
 
 
