@@ -6,10 +6,14 @@
 
 #include "type.h"
 
-void memcpy(void *src, void *dst, uint32 size);
+// memory.asm
+void memcpy(void *dst, const void *src, uint32 size);
+void memset(void *ptr, uint32 val, uint32 size);
 
+// print_string.asm
 void print_string(const char *ptr_string, uint32 length, uint32 row, uint32 col);
 
+// print.c
 void itoa(uint32 value, char *str);
 void print_set_location(uint32 row, uint32 col);
 void print_cstring(const char *ptr_string);	// Used for c-style char array

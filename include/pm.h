@@ -3,6 +3,7 @@
 #ifndef _PM_H_
 #define _PM_H_
 
+#include "proc.h"
 #include "type.h"
 
 
@@ -67,39 +68,49 @@
 #define TYPE_G_TASK	5		// Task Gate
 
 // GDT / LDT / IDT Selector Flags
-#define SEL_TI_L	4	// LDT Selector
-#define SEL_TI_G	0	// GDT Selector
-#define SEL_RPL_0	0	// RPL 0
-#define SEL_RPL_1	1	// RPL 1
-#define SEL_RPL_2	2	// RPL 2
-#define SEL_RPL_3	3	// RPL 3
+#define SEL_TI_L	4		// LDT Selector
+#define SEL_TI_G	0		// GDT Selector
+#define SEL_RPL_0	0		// RPL 0
+#define SEL_RPL_1	1		// RPL 1
+#define SEL_RPL_2	2		// RPL 2
+#define SEL_RPL_3	3		// RPL 3
+
+// GDT / LDT Count in Kernel
+#define GDT_COUNT	(6 + USER_PROCESS_COUNT)
+#define LDT_COUNT	2
 
 // Kernel GDT Selector
-#define KERNEL_GDT_FLAT_C_SELECTOR	1 << 3
+#define SEL_TO_IDX(x) 		(x >> 3)
+
+#define KERNEL_GDT_FLAT_CODE_SELECTOR	1 << 3
 #define KERNEL_GDT_FLAT_DRW_SELECTOR	2 << 3
-#define KERNEL_GDT_STACK_SELECTOR	3 << 3
+#define KERNEL_GDT_FLAT_STACK_SELECTOR	3 << 3
 #define KERNEL_GDT_VIDEO_SELECTOR	(4 << 3) + SEL_RPL_3
+#define KERNEL_GDT_FLAT_TSS_SELECTOR	5 << 3
+#define KERNEL_GDT_FLAT_LDT_0_SELECTOR	6 << 3
+
+// Kernel LDT Selector
+#define KERNEL_LDT_CODE_SELECTOR	(0 << 3) + SEL_TI_L + SEL_RPL_3
+#define KERNEL_LDT_DATA_SELECTOR	(1 << 3) + SEL_TI_L + SEL_RPL_3
 
 
-#pragma pack(push, 2)
+#pragma pack(push, 1)
 // NOTE: if not pack(1), then gcc will add 1~3 bytes padding for any non 32-bit data member -- default is pack(4). 
 // NOTE: asm related struct, order is important
 
 /* GDT/LDT */
 struct descriptor 
 {
-	uint16	segment_limit_1;		// Segment Limit (bit 0-15)
-	uint16	base_address_1;			// Base Address (bit 0-15)
-	uint8	base_address_2;			// Base Address (bit 16-23)
-	uint8   attribute_1;			// P, DPL, S, Type
-	uint8	attribute_2;			// G, D/B, AVL, Segment Limit (bit 16-19)
-	uint8   base_address_3;			// Base Address (bit 24-31)		
+	uint16	segment_limit_1;	// Segment Limit (bit 0-15)
+	uint16	base_address_1;		// Base Address (bit 0-15)
+	uint8	base_address_2;		// Base Address (bit 16-23)
+	uint8   attribute_1;		// P, DPL, S, Type
+	uint8	attribute_2;		// G, D/B, AVL, Segment Limit (bit 16-19)
+	uint8   base_address_3;		// Base Address (bit 24-31)		
 };
-// NOTE: must use uint16, since there is no PADDING added in asm code.
-
 #define DESCRIPTOR_SIZE			sizeof(struct descriptor)
 
-/* Call/Interrupt/Trap Gate  */
+/* Call/Interrupt/Trap Gate */
 struct gate_descriptor
 {
 	uint16 offset_1;		// Offset(bit 0-15) w.r.t within the segment decribed by selector
@@ -108,7 +119,6 @@ struct gate_descriptor
 	uint8 attribute;		// Attribute
 	uint16 offset_2;		// Offset(bit 16-31) w.r.t within the segment decribed by selector
 };
-
 #define GATE_DESCRIPTOR_SIZE		sizeof(struct gate_descriptor)
 
 /* Pointer of all kinds of descriptor */
@@ -117,6 +127,50 @@ struct descriptor_ptr
 	uint16 limit;			// limit of array of descriptors
 	void *ptr_base;			// Descriptors' base address
 };
+
+/* Task State Segment (TSS) */
+struct task_state_segment
+{
+	uint16 last_link;
+	uint16 reserved_0;
+	uint32 esp_0;			// Ring 0
+	uint16 ss_0;
+	uint16 reserved_1;
+	uint32 esp_1;			// Ring 1
+	uint16 ss_1;
+	uint16 reserved_2;
+	uint32 esp_2;			// Ring 2
+	uint16 ss_2;
+	uint16 reserved_3;
+	uint32 gr3_pdbr;
+	uint32 eip;
+	uint32 eflags;
+	uint32 eax;
+	uint32 ecx;
+	uint32 edx;
+	uint32 ebx;
+	uint32 esp;
+	uint32 ebp;
+	uint32 esi;
+	uint32 edi;
+	uint16 es;
+	uint16 reserved_4;
+	uint16 cs;
+	uint16 reserved_5;
+	uint16 ss;
+	uint16 reserved_6;
+	uint16 ds;
+	uint16 reserved_7;
+	uint16 fs;
+	uint16 reserved_8;
+	uint16 gs;
+	uint16 reserved_9;
+	uint16 ldt_selector;
+	uint16 reserved_10;
+	uint16 debug_trap;		// bit-0 of debug_trap = 1: CPU will raise a debug exception when a task switch occurs
+	uint16 IO_map_base;		// With respect to TSS segment (in bytes)
+};
+#define TASK_STATE_SEGMENT_SIZE		sizeof(struct task_state_segment)
 
 #pragma pack(pop)
 

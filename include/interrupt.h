@@ -4,6 +4,8 @@
 #ifndef _INTERRUPT_H_
 #define _INTERRUPT_H_
 
+#include "type.h"
+
 /* Interrupts / Exceptions Vector Table
  * 0 ~ 19		CPU exceptions
  * 20 ~ 31		Reserved by Intel
@@ -29,6 +31,23 @@
 #define DATA_8259A_MAIN_OCW1		0xfe	// Enable only clock interrupt
 #define DATA_8259A_SLAVE_OCW1 		0xff	// Disable all interrupts
 #define DATA_8259A_OCW2			0x20	// Send EOI to notify 8259A interrupt processed
+
+// Interrupt related struct
+struct int_plc_stack_frame	// Interrupt (No Error Code, Priviledge Level Change) Stack Frame
+{
+	uint32 eip;
+	uint32 cs;
+	uint32 eflags;
+	uint32 esp;
+	uint32 ss;
+};
+
+struct int_stack_frame		// Interrupt (No Error Code, No Priviledge Level Change) Stack Frame
+{
+	uint32 eip;
+	uint32 cs;
+	uint32 eflags;
+};
 
 // Interrupt related funtions
 void sti(void);

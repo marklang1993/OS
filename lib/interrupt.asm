@@ -182,13 +182,24 @@ int_handler_default:
 ; # void int_handler_clock(void)
 ; Handle clock interrupt
 int_handler_clock:
+	
+	pushad
+	push ds
+	push es
+	push fs
+	push gs
+
 	; Display changed character for clock interrupt	
 	mov byte [gs:((80 * 2 + 8) * 2 + 1)], 0fh
 	inc byte [gs:((80 * 2 + 8) * 2)]
 	
-	push eax
 	mov al, 20h
-	out 20h, al	; Send EOI
-	pop eax	
+	out 20h, al	; Send EOI	
+
+	pop gs
+	pop fs
+	pop es
+	pop ds
+	popad
 
 	iretd
