@@ -61,11 +61,7 @@ Kernel_Start:
 	
 	call kernel_main 	; Jmp to kernel_main
 
-	; Start user process
-	; # Save esp for the bottom of PROCESS TABLE
-	lea ebx, [tss + 4]	; 4 is the offset of "esp_0" in tss struct
-	lea eax, [user_process + 17 * 4]
-	mov ebx, eax
+	; Prepare for starting user process
 	; # Reset ss, esp to PROCESS TABLE
 	mov esp, user_process	; Set esp to the top of user process stack frame
 	mov ax, KERNEL_GDT_FLAT_DRW_Selector
@@ -83,6 +79,7 @@ Kernel_Start:
 	pop ds
 	popad
 
+	; Start user process
 	iretd	
 
 	; Kernel process stop here

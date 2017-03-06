@@ -26,7 +26,8 @@ global int_handler_clock
 global int_handler_default 
 
 extern interrupt_handler
-
+extern tss
+extern user_process
 
 [section .text]
 
@@ -182,24 +183,39 @@ int_handler_default:
 ; # void int_handler_clock(void)
 ; Handle clock interrupt
 int_handler_clock:
-	
+
+	; Save user process stack frame
 	pushad
 	push ds
 	push es
 	push fs
 	push gs
 
+	; Set ds, es, fs in ring 0
+	; NOTE: ss points to KERNEL_GDT_FLAT_DRW_SELECTOR (NOT STACK SELECTOR)
+	mov ax, ss
+	mov ds, ax
+	mov es, ax
+	mov fs, ax
+
 	; Display changed character for clock interrupt	
 	mov byte [gs:((80 * 2 + 8) * 2 + 1)], 0fh
 	inc byte [gs:((80 * 2 + 8) * 2)]
 	
+	; Notify 8295A - ready for next interrupt
 	mov al, 20h
 	out 20h, al	; Send EOI	
 
+	; Switch stack to Kernel Stack (But here is switch to the stack of Process Table)
+	;lea eax, [user_process + 17 * 4]
+	;mov dword [tss + 4], eax
+
+	; Restore user process stack frame
 	pop gs
 	pop fs
 	pop es
 	pop ds
 	popad
 
+	; Return to user process
 	iretd

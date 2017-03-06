@@ -105,7 +105,10 @@ static void kernel_init_gdt(void)
 static void kernel_init_tss(void)
 {
 	memset(&tss, 0, TASK_STATE_SEGMENT_SIZE);
-	tss.ss_0 = KERNEL_GDT_FLAT_STACK_SELECTOR;
+	tss.ss_0 = KERNEL_GDT_FLAT_DRW_SELECTOR;
+	// Set the esp_0 to PROCESS TABLE
+	// When clock interrupt occurs, the esp will point to PROCESS TABLE
+	tss.esp_0 = (uint32)(&user_process[0].ldt[0]);
 }
 
 
@@ -256,10 +259,10 @@ void kernel_main(void)
 	user_process[0].stack_frame.ds = KERNEL_LDT_DATA_SELECTOR;
 	user_process[0].stack_frame.int_frame.eip = (uint32)user_main;
 	user_process[0].stack_frame.int_frame.cs = KERNEL_LDT_CODE_SELECTOR;	
-	user_process[0].stack_frame.int_frame.eflags = 0x3002;	// IOPL = 3	
-	user_process[0].stack_frame.int_frame.esp = (uint32)(user_process[0].stack + USER_PROCESS_COUNT);	
+	user_process[0].stack_frame.int_frame.eflags = 0x3202;	// IOPL = 3
+	user_process[0].stack_frame.int_frame.esp = (uint32)(user_process[0].stack + PROCESS_STACK_SIZE);
 	user_process[0].stack_frame.int_frame.ss = KERNEL_LDT_DATA_SELECTOR;
-	
+
 	// Print msg.
 	print_set_location(4, 0);
 	print_cstring("Start User Process!");
