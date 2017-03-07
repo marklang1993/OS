@@ -1,3 +1,7 @@
+%include "interrupt.inc"
+%include "pm.inc"
+%include "proc.inc"
+
 global sti
 global cli
 
@@ -207,8 +211,8 @@ int_handler_clock:
 	inc byte [gs:((80 * 2 + 8) * 2)]
 
 	; Notify 8295A - ready for next interrupt
-	mov al, 20h
-	out 20h, al			; Send EOI, activate 8259A	
+	mov al, PORT_8259A_MAIN_0
+	out DATA_8259A_OCW2, al			; Send EOI, activate 8259A
 
 	; Check recursively calling of clock interrupt handler
 	cmp dword [process_scheduler_running], 0
@@ -233,8 +237,8 @@ int_handler_clock:
 	cli
 	
 	; Reset esp_0 on tss - esp position of process table entry for next clock interrupt
-	lea eax, [esp + 17 * 4]
-	mov dword [tss + 4], eax
+	lea eax, [esp + PROCESS_BOTTOM_STACK_FRAME_OFFSET]
+	mov dword [tss + TSS_ESP_0_OFFSET], eax
 
 	; Clear Flag - process scheduler running
 	xor dword [process_scheduler_running], 1 

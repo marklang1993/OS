@@ -4,15 +4,7 @@
 ; Stack - Address Range			(1FFFCh~10000h = 64 KB - 8B)
 ; Kernel in Memory - Address Range	(50000h~5FFFFh = 64 KB)
 
-
-%include "boot/pm.inc"
-; Kernel GDT Selector
-KERNEL_GDT_FLAT_C_Selector		equ		1 << 3
-KERNEL_GDT_FLAT_DRW_Selector		equ		2 << 3
-KERNEL_GDT_STACK_Selector		equ		3 << 3
-KERNEL_GDT_VIDEO_Selector		equ		(4 << 3) + SEL_RPL_3	
-KERNEL_GDT_FLAT_TSS_Selector		equ		5 << 3
-KERNEL_GDT_FLAT_LDT_0_Selector		equ		6 << 3
+%include "pm.inc"
 
 [section .text]
 

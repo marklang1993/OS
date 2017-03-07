@@ -6,13 +6,15 @@
 
 #include "type.h"
 
-/* Interrupts / Exceptions Vector Table
+/* 
+ * Interrupts / Exceptions Vector Table
  * 0 ~ 19		CPU exceptions
  * 20 ~ 31		Reserved by Intel
  * 32 ~ 255		Maskable interrupts
-*/
+ */
 #define INTERRUPT_COUNT			256
 
+// 8259A Ports 
 #define PORT_8259A_MAIN_0		0x20
 #define PORT_8259A_MAIN_1		0x21
 #define PORT_8259A_SLAVE_0		0xa0
