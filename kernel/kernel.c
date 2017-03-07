@@ -20,6 +20,10 @@ struct process user_process[USER_PROCESS_COUNT];
 // Stack pointer in kernel
 uint32 kernel_esp;
 
+
+void user_main_A(void);
+void user_main_B(void);
+
 /* 
  # Initialize GDT / LDT entry in kernel
  @ dt         : descriptor table
@@ -202,6 +206,39 @@ static void kernel_init_idt(void)
 	idt_ptr.ptr_base = (void*)idt;
 }
 
+static void kernel_init_user_process(uint32 pid, ptr_void_function p_func)
+{
+	// Init. ldt in user process
+	memset((void*)(user_process + pid), 0, sizeof(struct process));
+	kernel_init_dt_entry(
+			user_process[pid].ldt,
+                        SEL_TO_IDX(KERNEL_LDT_CODE_SELECTOR) + pid,
+                        0,
+                        0xfffff,
+                        TYPE_C_E + TYPE_C_R + S_DC + P_T + D_EC_32 + G_4KB + DPL_3
+                        );
+	kernel_init_dt_entry(
+			user_process[pid].ldt,
+                        SEL_TO_IDX(KERNEL_LDT_DATA_SELECTOR) + pid,
+                        0,
+                        0xfffff,
+                        TYPE_D_W + TYPE_D_R + S_DC + P_T + D_EC_32 + G_4KB + DPL_3
+                        );
+
+	// Init. stack frame
+	user_process[pid].stack_frame.gs = KERNEL_GDT_VIDEO_SELECTOR;
+	user_process[pid].stack_frame.fs = KERNEL_LDT_DATA_SELECTOR;
+	user_process[pid].stack_frame.es = KERNEL_LDT_DATA_SELECTOR;
+	user_process[pid].stack_frame.ds = KERNEL_LDT_DATA_SELECTOR;
+	user_process[pid].stack_frame.int_frame.eip = (uint32)p_func;
+	user_process[pid].stack_frame.int_frame.cs = KERNEL_LDT_CODE_SELECTOR;	
+	user_process[pid].stack_frame.int_frame.eflags = 0x3202;	// IOPL = 3
+	user_process[pid].stack_frame.int_frame.esp = (uint32)(user_process[pid].stack + PROCESS_STACK_SIZE);
+	user_process[pid].stack_frame.int_frame.ss = KERNEL_LDT_DATA_SELECTOR;
+
+	// Init. other parameters
+	user_process[pid].pid = pid;
+}
 
 /* 
  # Initialize Kernel
@@ -216,67 +253,29 @@ void kernel_init(void)
 	// Print msg.
 	print_set_location(3, 0);
 	print_cstring("Kernel is Running!");
-
-/*
-	print_set_location(4, 0);
-	memset(kernel_running_str, '0', 18);
-	print_cstring(kernel_running_str);
-
-	print_set_location(4, 0);
-	print_uint32((uint32)&gdt);
-	print_set_location(4, 9);
-	print_uint32((uint32)&idt);
-*/
-
 }
 
-void user_main(void);
 
 /*
  # Kernel Main
  */
 void kernel_main(void)
 {
-	// Init. ldt in user process -- 0
-	memset(user_process, 0, sizeof(struct process));
-	kernel_init_dt_entry(
-			user_process[0].ldt,
-                        SEL_TO_IDX(KERNEL_LDT_CODE_SELECTOR),
-                        0,
-                        0xfffff,
-                        TYPE_C_E + TYPE_C_R + S_DC + P_T + D_EC_32 + G_4KB + DPL_3
-                        );
-	kernel_init_dt_entry(
-			user_process[0].ldt,
-                        SEL_TO_IDX(KERNEL_LDT_DATA_SELECTOR),
-                        0,
-                        0xfffff,
-                        TYPE_D_W + TYPE_D_R + S_DC + P_T + D_EC_32 + G_4KB + DPL_3
-                        );
-
-	// Init. stack frame
-	user_process[0].stack_frame.gs = KERNEL_GDT_VIDEO_SELECTOR;
-	user_process[0].stack_frame.fs = KERNEL_LDT_DATA_SELECTOR;
-	user_process[0].stack_frame.es = KERNEL_LDT_DATA_SELECTOR;
-	user_process[0].stack_frame.ds = KERNEL_LDT_DATA_SELECTOR;
-	user_process[0].stack_frame.int_frame.eip = (uint32)user_main;
-	user_process[0].stack_frame.int_frame.cs = KERNEL_LDT_CODE_SELECTOR;	
-	user_process[0].stack_frame.int_frame.eflags = 0x3202;	// IOPL = 3
-	user_process[0].stack_frame.int_frame.esp = (uint32)(user_process[0].stack + PROCESS_STACK_SIZE);
-	user_process[0].stack_frame.int_frame.ss = KERNEL_LDT_DATA_SELECTOR;
+	kernel_init_user_process(0, &user_main_A);
+	kernel_init_user_process(1, &user_main_B);
 
 	// Print msg.
 	print_set_location(4, 0);
-	print_cstring("Start User Process!");
+	print_cstring("Init. User Process OK!");
 }
 
 
 /*
- # Test User
+ # Test User Process A
  */
-void user_main(void)
+void user_main_A(void)
 {
-	char msg[] = "User Process is Running: ";
+	char msg[] = "User Process A is Running: ";
 	char count_str[] = "0000000000";
 	uint32 pos = 0;
 	uint32 count = 0;
@@ -290,5 +289,28 @@ void user_main(void)
        		itoa(count, count_str);
         	print_cstring_pos(count_str, 17, pos);
 		++count;
+	}
+}
+
+
+/*
+ # Test User Process B
+ */
+void user_main_B(void)
+{
+	char msg[] = "User Process B is Running: ";
+	char count_str[] = "0000000000";
+	uint32 pos = 0;
+	uint32 count = 0;
+
+
+	while(1)
+	{
+        	pos = strlen(msg);
+        	print_cstring_pos(msg, 18, 0);
+
+       		itoa(count, count_str);
+        	print_cstring_pos(count_str, 18, pos);
+		count += 2;
 	}
 }

@@ -56,7 +56,7 @@ void sti(void);
 void cli(void);
 
 // Interrupt handlers
-typedef void (*int_handler)(void);		// Function pointer of interrupt handler
+typedef ptr_void_function int_handler;		// Function pointer of interrupt handler
 
 void int_entry_division_fault(void);
 void int_entry_debug_exception(void);

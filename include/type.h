@@ -12,5 +12,8 @@ typedef signed int	int32;
 typedef signed short	int16;
 typedef signed char	int8;
 
+// Function pointer definitions
+typedef void (*ptr_void_function)(void);		// Function pointer of void type function
+
 #endif
 
