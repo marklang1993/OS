@@ -25,6 +25,7 @@ extern gdt_ptr
 extern idt_ptr
 extern tss
 extern user_process
+extern kernel_esp
 
 global _start		; Export entry function for linker
 
@@ -63,6 +64,7 @@ Kernel_Start:
 
 	; Prepare for starting user process
 	; # Reset ss, esp to PROCESS TABLE
+	mov [kernel_esp], esp	; Save kernel esp
 	mov esp, user_process	; Set esp to the top of user process stack frame
 	mov ax, KERNEL_GDT_FLAT_DRW_Selector
 	mov ss, ax

@@ -63,6 +63,21 @@ void itoa(uint32 value, char *str)
 }
 
 /*
+ # Calculate the length of a c-style string
+ @ str: pointer to a c-style char array
+*/
+uint32 strlen(const char *str)
+{
+	uint32 length = 0;
+	while(str[length] != 0)
+	{
+		++length;
+	}
+
+	return length;
+}
+
+/*
  # Set cursor location
  @ row : row position (0 ~ 24)
  @ col : column position (0 ~ 79)
@@ -78,6 +93,21 @@ void print_set_location(uint32 row, uint32 col)
 }
 
 /*
+ # Print a c-style string (end with "\0") with cursor position
+ # NOTE: This is a THREAD-SAFE function.
+ @ ptr_string : pointer to a c-style string
+ @ row : row position (0 ~ 24)
+ @ col : column position (0 ~ 79)
+*/
+void print_cstring_pos(const char *ptr_string, uint32 row, uint32 col)
+{
+	uint32 length = 0;
+
+	length = strlen(ptr_string);
+	print_string(ptr_string, length, row, col);
+}
+
+/*
  # Print a c-style string (end with "\0") & automatically move cursor position
  @ ptr_string : pointer to a c-style string
 */
@@ -87,10 +117,7 @@ void print_cstring(const char *ptr_string)
 	uint32 col_pos = print_col;
 	uint32 row_pos = print_row;
 
-	while(ptr_string[length] != 0)
-	{
-		++length;
-	}	
+	length = strlen(ptr_string);
 	print_string(ptr_string, length, row_pos, col_pos);
 	
 	// Calculate new cursor position

@@ -1,7 +1,7 @@
 # Makefile for OS #
 
 # Build Target
-OBJECT = kernel_asm.o kernel_c.o memory.o print_string.o io_port.o interrupt_asm.o interrupt_c.o print.o
+OBJECT = kernel_asm.o kernel_c.o proc.o memory.o print_string.o io_port.o interrupt_asm.o interrupt_c.o print.o
 TARGET = boot.bin loader.bin kernel.bin
 TARGET_IMG = boot.img
 
@@ -38,41 +38,44 @@ clean :
 	   rm -f $(OBJECT)
 	   rm -f $(TARGET_IMG)
 
-kernel_c.o : kernel/kernel.c
+kernel_c.o : 	kernel/kernel.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
-kernel_asm.o : kernel/kernel.asm
-	   $(ASM) $(ASM_ELF_FLAGS) -o $@ $<
+kernel_asm.o : 	kernel/kernel.asm
+		$(ASM) $(ASM_ELF_FLAGS) -o $@ $<
 
-memory.o : lib/memory.asm
-	   $(ASM) $(ASM_ELF_FLAGS) -o $@ $<
+proc.o : 	kernel/proc.c
+		$(GCC) $(GCC_FLAGS) -o $@ $<
 
-print_string.o :  lib/print_string.asm
-	   	  $(ASM) $(ASM_ELF_FLAGS) -o $@ $<
+memory.o : 	lib/memory.asm
+		$(ASM) $(ASM_ELF_FLAGS) -o $@ $<
 
-io_port.o : lib/io_port.asm
-	    $(ASM) $(ASM_ELF_FLAGS) -o $@ $<
+print_string.o : lib/print_string.asm
+		$(ASM) $(ASM_ELF_FLAGS) -o $@ $<
 
-interrupt_asm.o : lib/interrupt.asm
-	    $(ASM) $(ASM_ELF_FLAGS) -o $@ $<
+io_port.o : 	lib/io_port.asm
+		$(ASM) $(ASM_ELF_FLAGS) -o $@ $<
+
+interrupt_asm.o : kernel/interrupt.asm
+		$(ASM) $(ASM_ELF_FLAGS) -o $@ $<
 
 interrupt_c.o : kernel/interrupt.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
-print.o : lib/print.c
-	  $(GCC) $(GCC_FLAGS) -o $@ $<
+print.o : 	lib/print.c
+		$(GCC) $(GCC_FLAGS) -o $@ $<
 
-boot.bin : boot/boot.asm
-	   $(ASM) $(ASM_FLAGS) -o $@ $<
+boot.bin : 	boot/boot.asm
+		$(ASM) $(ASM_FLAGS) -o $@ $<
 
-loader.bin : boot/loader.asm
-	     $(ASM) $(ASM_FLAGS) -o $@ $<
+loader.bin : 	boot/loader.asm
+		$(ASM) $(ASM_FLAGS) -o $@ $<
 
 kernel.bin :
-	     $(LINKER) $(LINKER_FLAGS) -o $@ $(OBJECT) 
+		$(LINKER) $(LINKER_FLAGS) -o $@ $(OBJECT) 
 
-boot.img : boot.bin
-	   $(IMG) if=/dev/zero of=$(TARGET_IMG) $(DISK_IMG_FLAGS)
-	   $(IMG_FORMAT) -F 12 -v $(TARGET_IMG) 
-	   $(IMG) if=$< of=$(TARGET_IMG) $(BOOT_IMG_FLAGS)
+boot.img : 	boot.bin
+		$(IMG) if=/dev/zero of=$(TARGET_IMG) $(DISK_IMG_FLAGS)
+		$(IMG_FORMAT) -F 12 -v $(TARGET_IMG) 
+		$(IMG) if=$< of=$(TARGET_IMG) $(BOOT_IMG_FLAGS)
 	 

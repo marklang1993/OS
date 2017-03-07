@@ -17,6 +17,8 @@ struct task_state_segment tss;
 // Process in kernel
 struct process user_process[USER_PROCESS_COUNT];
 
+// Stack pointer in kernel
+uint32 kernel_esp;
 
 /* 
  # Initialize GDT / LDT entry in kernel
@@ -274,14 +276,19 @@ void kernel_main(void)
  */
 void user_main(void)
 {
-	uint32 i = 0;
+	char msg[] = "User Process is Running: ";
+	char count_str[] = "0000000000";
+	uint32 pos = 0;
+	uint32 count = 0;
+
 
 	while(1)
 	{
-		print_set_location(17, 0);
-		print_cstring("User Process is Running: ");
-		print_set_location(17, 26);
-		print_uint32(i);
-		++i;
+        	pos = strlen(msg);
+        	print_cstring_pos(msg, 17, 0);
+
+       		itoa(count, count_str);
+        	print_cstring_pos(count_str, 17, pos);
+		++count;
 	}
 }

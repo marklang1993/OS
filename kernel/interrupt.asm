@@ -26,8 +26,9 @@ global int_handler_clock
 global int_handler_default 
 
 extern interrupt_handler
-extern tss
-extern user_process
+
+extern kernel_esp
+extern process_scheduler
 
 [section .text]
 
@@ -204,9 +205,17 @@ int_handler_clock:
 	
 	; Notify 8295A - ready for next interrupt
 	mov al, 20h
-	out 20h, al	; Send EOI	
+	out 20h, al			; Send EOI	
 
-	; Switch stack to Kernel Stack (But here is switch to the stack of Process Table)
+	; Run scheduler
+	mov eax, esp			; Save current stack
+	mov esp, [kernel_esp]		; Switch stack to kernel stack
+	push eax			; Pass parameter : top of the current process table entry	
+	call process_scheduler		; Run scheduler
+	pop eax				; Get top of the next process table entry
+	mov [kernel_esp], esp		; Save kernel stack pointer
+	mov esp, eax			; Restore the esp to top of process table entry
+	
 	;lea eax, [user_process + 17 * 4]
 	;mov dword [tss + 4], eax
 
