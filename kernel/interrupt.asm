@@ -27,7 +27,10 @@ global int_handler_default
 
 extern interrupt_handler
 
+extern tss
 extern kernel_esp
+
+extern process_scheduler_running
 extern process_scheduler
 
 [section .text]
@@ -198,14 +201,24 @@ int_handler_clock:
 	mov ds, ax
 	mov es, ax
 	mov fs, ax
-
+	
 	; Display changed character for clock interrupt	
 	mov byte [gs:((80 * 2 + 8) * 2 + 1)], 0fh
 	inc byte [gs:((80 * 2 + 8) * 2)]
-	
+
 	; Notify 8295A - ready for next interrupt
 	mov al, 20h
-	out 20h, al			; Send EOI	
+	out 20h, al			; Send EOI, activate 8259A	
+
+	; Check recursively calling of clock interrupt handler
+	cmp dword [process_scheduler_running], 0
+	jne int_handler_clock_reenter
+
+	; Set Flag - process scheduler running
+	xor dword [process_scheduler_running], 1 
+	
+	; Turn on the interrupt
+	sti
 
 	; Run scheduler
 	mov eax, esp			; Save current stack
@@ -215,10 +228,18 @@ int_handler_clock:
 	pop eax				; Get top of the next process table entry
 	mov [kernel_esp], esp		; Save kernel stack pointer
 	mov esp, eax			; Restore the esp to top of process table entry
-	
-	;lea eax, [user_process + 17 * 4]
-	;mov dword [tss + 4], eax
 
+	; Turn off the interrupt
+	cli
+	
+	; Reset esp_0 on tss - esp position of process table entry for next clock interrupt
+	lea eax, [esp + 17 * 4]
+	mov dword [tss + 4], eax
+
+	; Clear Flag - process scheduler running
+	xor dword [process_scheduler_running], 1 
+
+int_handler_clock_exit:
 	; Restore user process stack frame
 	pop gs
 	pop fs
@@ -228,3 +249,10 @@ int_handler_clock:
 
 	; Return to user process
 	iretd
+
+int_handler_clock_reenter:
+	; Display changed character for clock interrupt	reenter
+	mov byte [gs:((80 * 2 + 10) * 2 + 1)], 0fh
+	inc byte [gs:((80 * 2 + 10) * 2)]
+	
+	jmp int_handler_clock_exit
