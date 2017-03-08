@@ -36,11 +36,11 @@ _start:
 	jmp KERNEL_GDT_FLAT_C_Selector:Kernel_Start 
 
 Kernel_Start:
-	; Initialize registers -- ds, es, ss, gs
+	; Initialize registers -- ds, es, fs, ss, gs
 	mov ax, KERNEL_GDT_FLAT_DRW_Selector
 	mov ds, ax
 	mov es, ax
-	mov ax, KERNEL_GDT_STACK_Selector
+	mov fs, ax
 	mov ss, ax
 	mov ax, KERNEL_GDT_VIDEO_Selector
 	mov gs, ax
@@ -55,17 +55,15 @@ Kernel_Start:
 	call kernel_main 	; Jmp to kernel_main
 
 	; Prepare for starting user process
-	; # Reset ss, esp to PROCESS TABLE
-	mov [kernel_esp], esp	; Save kernel esp
-	mov esp, user_process	; Set esp to the top of user process stack frame
-	mov ax, KERNEL_GDT_FLAT_DRW_Selector
-	mov ss, ax
 	; # Load LDT
 	mov ax, KERNEL_GDT_FLAT_LDT_0_Selector
 	lldt ax
 	; # Load TSS
 	mov ax, KERNEL_GDT_FLAT_TSS_Selector
 	ltr ax
+	; # Reset ss, esp to PROCESS TABLE
+	mov [kernel_esp], esp	; Save kernel esp
+	mov esp, user_process	; Set esp to the top of user process stack frame
 	; # Restore all registers of user process
 	pop gs			
 	pop fs

@@ -199,8 +199,7 @@ int_handler_clock:
 	push fs
 	push gs
 
-	; Set ds, es, fs in ring 0
-	; NOTE: ss points to KERNEL_GDT_FLAT_DRW_SELECTOR (NOT STACK SELECTOR)
+	; Set ds, es, fs to the descriptor of ring 0
 	mov ax, ss
 	mov ds, ax
 	mov es, ax

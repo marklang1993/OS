@@ -75,23 +75,22 @@
 #define SEL_RPL_2	2		// RPL 2
 #define SEL_RPL_3	3		// RPL 3
 
-// GDT / LDT Count in Kernel
-#define GDT_COUNT	(6 + USER_PROCESS_COUNT)
-#define LDT_COUNT	2
-
 // Kernel GDT Selector
 #define SEL_TO_IDX(x) 		(x >> 3)
 
 #define KERNEL_GDT_FLAT_CODE_SELECTOR	1 << 3
 #define KERNEL_GDT_FLAT_DRW_SELECTOR	2 << 3
-#define KERNEL_GDT_FLAT_STACK_SELECTOR	3 << 3
-#define KERNEL_GDT_VIDEO_SELECTOR	(4 << 3) + SEL_RPL_3
-#define KERNEL_GDT_FLAT_TSS_SELECTOR	5 << 3
-#define KERNEL_GDT_FLAT_LDT_0_SELECTOR	6 << 3
+#define KERNEL_GDT_VIDEO_SELECTOR	(3 << 3) + SEL_RPL_3
+#define KERNEL_GDT_FLAT_TSS_SELECTOR	4 << 3
+#define KERNEL_GDT_FLAT_LDT_0_SELECTOR	5 << 3
 
 // Kernel LDT Selector
 #define KERNEL_LDT_CODE_SELECTOR	(0 << 3) + SEL_TI_L + SEL_RPL_3
 #define KERNEL_LDT_DATA_SELECTOR	(1 << 3) + SEL_TI_L + SEL_RPL_3
+
+// GDT / LDT Count in Kernel
+#define GDT_COUNT	(SEL_TO_IDX(KERNEL_GDT_FLAT_LDT_0_SELECTOR) + USER_PROCESS_COUNT)
+#define LDT_COUNT	2
 
 
 #pragma pack(push, 1)

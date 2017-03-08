@@ -150,7 +150,6 @@ KernelFileCopyPosition:		dw		0
 GDT_START:		Descriptor	0,		0,		0	; Empty desciptor for indexing
 GDT_FLAT_CODE:		Descriptor	0,		0fffffh,	TYPE_C_E + TYPE_C_R + S_DC + P_T + D_EC_32 + G_4KB
 GDT_FLAT_DRW:		Descriptor	0,		0fffffh,	TYPE_D_W + TYPE_D_R + S_DC + P_T + D_EC_32 + G_4KB
-GDT_FLAT_STACK:		Descriptor	0,		01fh,		TYPE_D_W + TYPE_D_R + S_DC + P_T + BD_S_32 + G_4KB
 GDT_VIDEO:		Descriptor	0b8000h,	0ffffh,		TYPE_D_W + TYPE_D_R + S_DC + P_T + DPL_3
 
 GDT_Length		equ		$ - GDT_START		; GDT Length
@@ -159,7 +158,6 @@ GDT_Pointer:		DTPointer	LoaderBaseOffset + GDT_START,	GDT_Length - 1
 ; GDT Selector
 GDT_FLAT_CODE_Selector	equ		GDT_FLAT_CODE - GDT_START 
 GDT_FLAT_DRW_Selector	equ		GDT_FLAT_DRW - GDT_START
-GDT_FLAT_STACK_Selector	equ		GDT_FLAT_STACK - GDT_START 
 GDT_VIDEO_Selector	equ		(GDT_VIDEO - GDT_START) + SEL_RPL_3
 
 
@@ -169,11 +167,10 @@ GDT_VIDEO_Selector	equ		(GDT_VIDEO - GDT_START) + SEL_RPL_3
 LABEL_LOADER_32BIT_CODE:
 
 	; Initialize registers in 32-bit protect mode
-	mov ax, GDT_FLAT_DRW_Selector		; Set ds, es, fs
+	mov ax, GDT_FLAT_DRW_Selector		; Set ds, es, fs, ss
 	mov ds, ax
 	mov es, ax
 	mov fs, ax
-	mov ax, GDT_FLAT_STACK_Selector		; Set ss, esp
 	mov ss, ax
 	mov esp, StackBaseOffset
 
@@ -393,6 +390,5 @@ CopyKernel_ProgramSegment_Done:
 	add esp, 12		; Clear local variables
 	pop ebp			; Restore ebp
 	ret
-
 
 
