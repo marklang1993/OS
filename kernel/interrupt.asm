@@ -29,11 +29,17 @@ global int_entry_simd_float_fault
 global int_handler_clock
 global int_handler_default 
 
-extern interrupt_handler
-
+; kernel.c
 extern tss
 extern kernel_esp
 
+; kernel.asm
+extern process_restart
+
+; interrupt.c
+extern interrupt_handler
+
+; proc.c
 extern process_scheduler_running
 extern process_scheduler
 
@@ -215,7 +221,7 @@ int_handler_clock:
 
 	; Check recursively calling of clock interrupt handler
 	cmp dword [process_scheduler_running], 0
-	jne int_handler_clock_reenter
+	jne process_restart
 
 	; Set Flag - process scheduler running
 	xor dword [process_scheduler_running], 1 
@@ -242,20 +248,4 @@ int_handler_clock:
 	; Clear Flag - process scheduler running
 	xor dword [process_scheduler_running], 1 
 
-int_handler_clock_exit:
-	; Restore user process stack frame
-	pop gs
-	pop fs
-	pop es
-	pop ds
-	popad
-
-	; Return to user process
-	iretd
-
-int_handler_clock_reenter:
-	; Display changed character for clock interrupt	reenter
-	mov byte [gs:((80 * 2 + 10) * 2 + 1)], 0fh
-	inc byte [gs:((80 * 2 + 10) * 2)]
-	
-	jmp int_handler_clock_exit
+	jmp process_restart

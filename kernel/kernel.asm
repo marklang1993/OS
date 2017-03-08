@@ -12,6 +12,7 @@
 extern kernel_init
 extern kernel_main
 
+
 ; External variables
 extern gdt_ptr
 extern idt_ptr
@@ -20,6 +21,7 @@ extern user_process
 extern kernel_esp
 
 global _start		; Export entry function for linker
+global process_restart
 
 _start:
 	; Display "K" for kernel	
@@ -61,10 +63,14 @@ Kernel_Start:
 	; # Load TSS
 	mov ax, KERNEL_GDT_FLAT_TSS_Selector
 	ltr ax
-	; # Reset ss, esp to PROCESS TABLE
+	; # Switch esp to PROCESS TABLE
 	mov [kernel_esp], esp	; Save kernel esp
 	mov esp, user_process	; Set esp to the top of user process stack frame
-	; # Restore all registers of user process
+
+	; # Entry of restarting user process
+process_restart:
+	
+	; Restore all registers of user process
 	pop gs			
 	pop fs
 	pop es
@@ -73,6 +79,3 @@ Kernel_Start:
 
 	; Start user process
 	iretd	
-
-	; Kernel process stop here
-	jmp $
