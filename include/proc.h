@@ -8,7 +8,7 @@
 
 #define PROCESS_NAME_LENGTH	16
 #define PROCESS_STACK_SIZE	0x100		// 0x100 * 4 byte = 1 KB
-#define USER_PROCESS_COUNT	2
+#define USER_PROCESS_COUNT	3
 
 /* Process Stack Frame - Kernel & User*/
 struct process_stack_frame
@@ -35,6 +35,7 @@ struct process_stack_frame
 struct process
 {
 	struct process_stack_frame stack_frame;
+	uint32 ldt_ptr;
 	struct descriptor ldt[LDT_COUNT];	// 0: Code; 1: Data
 	uint32 stack[PROCESS_STACK_SIZE];	// Process Stack
 	uint32 cycles;				// Remained cycles of this process

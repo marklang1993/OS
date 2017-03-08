@@ -23,6 +23,7 @@ uint32 kernel_esp;
 
 void user_main_A(void);
 void user_main_B(void);
+void user_main_C(void);
 
 /* 
  # Initialize GDT / LDT entry in kernel
@@ -81,18 +82,18 @@ static void kernel_init_gdt(void)
 			gdt,
 			SEL_TO_IDX(KERNEL_GDT_FLAT_TSS_SELECTOR), 
 			(uint32)&tss, 
-			TASK_STATE_SEGMENT_SIZE,
+			TASK_STATE_SEGMENT_SIZE - 1,
 			G_BYTE | P_T | S_SG | TYPE_S_A386TSS
 			);
 
-	// Init. gdt entries of ldt in each user process
+	// Init. gdt entries of ldt for each user process
 	for(i = 0; i < USER_PROCESS_COUNT; ++i)
 	{
 		kernel_init_dt_entry(
 			gdt,
 			SEL_TO_IDX(KERNEL_GDT_FLAT_LDT_0_SELECTOR) + i,
-			(uint32)&(user_process[i].ldt),
-			DESCRIPTOR_SIZE * LDT_COUNT,
+			(uint32)&(user_process[i].ldt[0]),
+			DESCRIPTOR_SIZE * LDT_COUNT - 1,
 			G_BYTE | P_T | S_SG | TYPE_S_LDT
 			);
 	}
@@ -112,9 +113,6 @@ static void kernel_init_tss(void)
 {
 	memset(&tss, 0, TASK_STATE_SEGMENT_SIZE);
 	tss.ss_0 = KERNEL_GDT_FLAT_DRW_SELECTOR;
-	// Set the esp_0 to PROCESS TABLE
-	// When clock interrupt occurs, the esp will point to PROCESS TABLE
-	tss.esp_0 = (uint32)(&user_process[0].ldt[0]);
 }
 
 
@@ -211,15 +209,15 @@ static void kernel_init_user_process(uint32 pid, ptr_void_function p_func)
 	// Init. ldt in user process
 	memset((void*)(user_process + pid), 0, sizeof(struct process));
 	kernel_init_dt_entry(
-			user_process[pid].ldt,
-                        SEL_TO_IDX(KERNEL_LDT_CODE_SELECTOR) + pid,
+			&user_process[pid].ldt[0],
+                        SEL_TO_IDX(KERNEL_LDT_CODE_SELECTOR),
                         0,
                         0xfffff,
                         TYPE_C_E + TYPE_C_R + S_DC + P_T + D_EC_32 + G_4KB + DPL_3
                         );
 	kernel_init_dt_entry(
-			user_process[pid].ldt,
-                        SEL_TO_IDX(KERNEL_LDT_DATA_SELECTOR) + pid,
+			&user_process[pid].ldt[0],
+                        SEL_TO_IDX(KERNEL_LDT_DATA_SELECTOR),
                         0,
                         0xfffff,
                         TYPE_D_W + TYPE_D_R + S_DC + P_T + D_EC_32 + G_4KB + DPL_3
@@ -237,6 +235,7 @@ static void kernel_init_user_process(uint32 pid, ptr_void_function p_func)
 	user_process[pid].stack_frame.int_frame.ss = KERNEL_LDT_DATA_SELECTOR;
 
 	// Init. other parameters
+	user_process[pid].ldt_ptr = (SEL_TO_IDX(KERNEL_GDT_FLAT_LDT_0_SELECTOR) + pid) << 3;
 	user_process[pid].pid = pid;
 }
 
@@ -263,6 +262,7 @@ void kernel_main(void)
 {
 	kernel_init_user_process(0, &user_main_A);
 	kernel_init_user_process(1, &user_main_B);
+	kernel_init_user_process(2, &user_main_C);
 
 	// Print msg.
 	print_set_location(4, 0);
@@ -311,6 +311,29 @@ void user_main_B(void)
 
        		itoa(count, count_str);
         	print_cstring_pos(count_str, 18, pos);
-		count += 2;
+		++count;
 	}
 }
+
+/*
+ # Test User Process C
+ */
+void user_main_C(void)
+{
+	char msg[] = "User Process C is Running: ";
+	char count_str[] = "0000000000";
+	uint32 pos = 0;
+	uint32 count = 0;
+
+
+	while(1)
+	{
+        	pos = strlen(msg);
+        	print_cstring_pos(msg, 19, 0);
+
+       		itoa(count, count_str);
+        	print_cstring_pos(count_str, 19, pos);
+		++count;
+	}
+}
+

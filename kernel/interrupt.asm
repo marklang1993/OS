@@ -35,6 +35,7 @@ extern kernel_esp
 
 ; kernel.asm
 extern process_restart
+extern process_restart_reenter
 
 ; interrupt.c
 extern interrupt_handler
@@ -221,7 +222,7 @@ int_handler_clock:
 
 	; Check recursively calling of clock interrupt handler
 	cmp dword [process_scheduler_running], 0
-	jne process_restart
+	jne process_restart_reenter
 
 	; Set Flag - process scheduler running
 	xor dword [process_scheduler_running], 1 
@@ -232,18 +233,12 @@ int_handler_clock:
 	; Run scheduler
 	mov eax, esp			; Save current stack
 	mov esp, [kernel_esp]		; Switch stack to kernel stack
-	push eax			; Pass parameter : top of the current process table entry	
+	push eax			; Pass parameter : top of the current process table entry
 	call process_scheduler		; Run scheduler
 	pop eax				; Get top of the next process table entry
-	mov [kernel_esp], esp		; Save kernel stack pointer
-	mov esp, eax			; Restore the esp to top of process table entry
 
 	; Turn off the interrupt
 	cli
-	
-	; Reset esp_0 on tss - esp position of process table entry for next clock interrupt
-	lea eax, [esp + PROCESS_BOTTOM_STACK_FRAME_OFFSET]
-	mov dword [tss + TSS_ESP_0_OFFSET], eax
 
 	; Clear Flag - process scheduler running
 	xor dword [process_scheduler_running], 1 

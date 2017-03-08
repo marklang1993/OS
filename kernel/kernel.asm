@@ -5,6 +5,7 @@
 ; Kernel in Memory - Address Range	(50000h~5FFFFh = 64 KB)
 
 %include "pm.inc"
+%include "proc.inc"
 
 [section .text]
 
@@ -22,6 +23,7 @@ extern kernel_esp
 
 global _start		; Export entry function for linker
 global process_restart
+global process_restart_reenter
 
 _start:
 	; Display "K" for kernel	
@@ -57,19 +59,25 @@ Kernel_Start:
 	call kernel_main 	; Jmp to kernel_main
 
 	; Prepare for starting user process
-	; # Load LDT
-	mov ax, KERNEL_GDT_FLAT_LDT_0_Selector
-	lldt ax
 	; # Load TSS
 	mov ax, KERNEL_GDT_FLAT_TSS_Selector
 	ltr ax
-	; # Switch esp to PROCESS TABLE
-	mov [kernel_esp], esp	; Save kernel esp
-	mov esp, user_process	; Set esp to the top of user process stack frame
+	; # Switch esp to the top of user process stack frame of index 0
+	mov eax, user_process
 
-	; # Entry of restarting user process
+	; # Start the user process of index 0
 process_restart:
 	
+	mov [kernel_esp], esp	; Save kernel esp
+	mov esp, eax		; Set esp to the new user process stack frame
+	; # Load LDT
+	lldt [esp + PROCESS_LDT_PTR_OFFSET]
+	; Reset esp_0 on tss - esp position of process table entry for next clock interrupt
+        lea eax, [esp + PROCESS_BOTTOM_STACK_FRAME_OFFSET]
+        mov dword [tss + TSS_ESP_0_OFFSET], eax
+
+process_restart_reenter:
+
 	; Restore all registers of user process
 	pop gs			
 	pop fs
@@ -78,4 +86,4 @@ process_restart:
 	popad
 
 	; Start user process
-	iretd	
+	iretd
