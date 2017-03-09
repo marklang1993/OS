@@ -43,3 +43,13 @@ void interrupt_handler(uint32 vector_no, uint32 error_code, uint32 eip, uint32 c
 	print_cstring("; CS: ");
 	print_uint32(cs);
 }
+
+void interrupt_reenter_times_init(void)
+{
+	uint32 i;
+	for (i = 0; i < INTERRUPT_COUNT; ++i)
+	{
+		int_reenter_times[i] = 1;
+	}
+}
+

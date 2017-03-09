@@ -238,7 +238,10 @@ void kernel_init(void)
 	kernel_init_gdt();
 	kernel_init_tss();
 	kernel_init_idt();
+
+	// Init. other data
 	kernel_init_dev();
+	interrupt_reenter_times_init();
 
 	// Print msg.
 	print_set_location(3, 0);

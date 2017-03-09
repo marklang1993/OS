@@ -1,6 +1,7 @@
 %include "interrupt.inc"
 %include "pm.inc"
 %include "proc.inc"
+%include "drivers/i8259a.inc"
 
 global sti
 global cli
@@ -39,6 +40,7 @@ extern process_restart_reenter
 
 ; interrupt.c
 extern interrupt_handler
+extern int_reenter_times
 
 ; proc.c
 extern process_scheduler_running
@@ -211,11 +213,12 @@ int_handler_clock:
 	out DATA_8259A_OCW2, al			; Send EOI, activate 8259A
 
 	; Check recursively calling of clock interrupt handler
-	cmp dword [process_scheduler_running], 0
-	jne process_restart_reenter
+	lea ebx, [int_reenter_times + (INTERRUPT_8259A_OFFSET + INDEX_8259A_CLOCK) * 4]
+	cmp dword [ebx], 0
+	je process_restart_reenter
 
 	; Set Flag - process scheduler running
-	xor dword [process_scheduler_running], 1 
+	xor dword [ebx], 1 
 	
 	; Turn on the interrupt
 	sti
@@ -231,6 +234,7 @@ int_handler_clock:
 	cli
 
 	; Clear Flag - process scheduler running
-	xor dword [process_scheduler_running], 1 
+	lea ebx, [int_reenter_times + (INTERRUPT_8259A_OFFSET + INDEX_8259A_CLOCK) * 4]	
+	xor dword [ebx], 1 
 
 	jmp process_restart

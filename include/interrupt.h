@@ -16,7 +16,7 @@
 #define INTERRUPT_COUNT			256
 #define INTERRUPT_8259A_OFFSET		32
 
-// Interrupt reenter times table
+// Interrupt re-enter times table - record the allowed re-enter times of an interrupt
 uint32 int_reenter_times[INTERRUPT_COUNT];
 
 // Interrupt related struct
@@ -39,6 +39,8 @@ struct int_stack_frame		// Interrupt (No Error Code, No Priviledge Level Change)
 // Interrupt related funtions
 void sti(void);
 void cli(void);
+
+void interrupt_reenter_times_init(void);
 
 // Interrupt handlers
 typedef ptr_void_function int_handler;		// Function pointer of interrupt handler
