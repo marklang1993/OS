@@ -18,3 +18,19 @@ DATA_8259A_MAIN_OCW1		equ		0feh   ; Enable only clock interrupt
 DATA_8259A_SLAVE_OCW1		equ		0ffh   ; Disable all interrupts
 DATA_8259A_OCW2			equ		020h   ; Send EOI to notify 8259A interrupt processed
 
+%macro IRQ_SAVE_PROC_FRAME 0
+
+        ; Save user process stack frame
+        pushad
+        push ds
+        push es
+        push fs
+        push gs
+
+        ; Set ds, es, fs to the descriptor of ring 0
+        mov ax, ss
+        mov ds, ax
+        mov es, ax
+        mov fs, ax
+
+%endmacro

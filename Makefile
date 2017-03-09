@@ -1,7 +1,8 @@
 # Makefile for OS #
 
 # Build Target
-OBJECT = kernel_asm.o kernel_c.o proc.o memory.o print_string.o io_port.o interrupt_asm.o interrupt_c.o print.o
+OBJECTS = kernel_asm.o kernel_c.o proc.o memory.o print_string.o io_port.o interrupt_asm.o interrupt_c.o print.o
+DRV_OBJECTS = i8259a.o
 TARGET = boot.bin loader.bin kernel.bin
 TARGET_IMG = boot.img
 
@@ -25,7 +26,7 @@ LINKER_FLAGS = -m elf_i386 -Ttext 0x50400
 .PHONY : all clean
 
 # Start Position
-all : $(OBJECT) $(TARGET) $(TARGET_IMG)
+all : $(OBJECTS) $(DRV_OBJECTS) $(TARGET) $(TARGET_IMG)
 	   sudo mount -o loop $(TARGET_IMG) /mnt/floppy
 	   sudo cp loader.bin /mnt/floppy/
 	   sudo cp kernel.bin /mnt/floppy/ 
@@ -35,7 +36,8 @@ run :
 	   $(MACHINE) -f bochsrc
 clean : 
 	   rm -f $(TARGET)
-	   rm -f $(OBJECT)
+	   rm -f $(OBJECTS)
+	   rm -f $(DRV_OBJECTS)
 	   rm -f $(TARGET_IMG)
 
 kernel_c.o : 	kernel/kernel.c
@@ -65,6 +67,9 @@ interrupt_c.o : kernel/interrupt.c
 print.o : 	lib/print.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
+i8259a.o :	kernel/drivers/i8259a.c
+		$(GCC) $(GCC_FLAGS) -o $@ $<
+
 boot.bin : 	boot/boot.asm
 		$(ASM) $(ASM_FLAGS) -o $@ $<
 
@@ -72,7 +77,7 @@ loader.bin : 	boot/loader.asm
 		$(ASM) $(ASM_FLAGS) -o $@ $<
 
 kernel.bin :
-		$(LINKER) $(LINKER_FLAGS) -o $@ $(OBJECT) 
+		$(LINKER) $(LINKER_FLAGS) -o $@ $(OBJECTS) $(DRV_OBJECTS)
 
 boot.img : 	boot.bin
 		$(IMG) if=/dev/zero of=$(TARGET_IMG) $(DISK_IMG_FLAGS)

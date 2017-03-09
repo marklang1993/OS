@@ -1,4 +1,3 @@
-#include "io_port.h"
 #include "lib.h"
 #include "proc.h"
 
@@ -146,23 +145,6 @@ static void kernel_init_idt(void)
 {
 	uint32 i;
 
-	// # Program 8259A
-	// ICW1
-	io_port_out(PORT_8259A_MAIN_0, DATA_8259A_ICW1);
-	io_port_out(PORT_8259A_SLAVE_0, DATA_8259A_ICW1);
-	// ICW2
-	io_port_out(PORT_8259A_MAIN_1, DATA_8259A_MAIN_ICW2);
-	io_port_out(PORT_8259A_SLAVE_1, DATA_8259A_SLAVE_ICW2);
-	// ICW3
-	io_port_out(PORT_8259A_MAIN_1, DATA_8259A_MAIN_ICW3);
-	io_port_out(PORT_8259A_SLAVE_1, DATA_8259A_SLAVE_ICW3);
-	// ICW4
-	io_port_out(PORT_8259A_MAIN_1, DATA_8259A_ICW4);
-	io_port_out(PORT_8259A_SLAVE_1, DATA_8259A_ICW4);
-	// OCW1
-	io_port_out(PORT_8259A_MAIN_1, DATA_8259A_MAIN_OCW1);
-	io_port_out(PORT_8259A_SLAVE_1, DATA_8259A_SLAVE_OCW1);
-
 	// # Interrupt Descriptor Table
 	// Intel defined interrupts 0 ~ 19
 	kernel_init_idt_entry(0, &int_entry_division_fault, DPL_0);
@@ -239,6 +221,14 @@ static void kernel_init_user_process(uint32 pid, ptr_void_function p_func)
 	user_process[pid].pid = pid;
 }
 
+/*
+ # Initialize Devices
+ */
+static void kernel_init_dev(void)
+{
+	init_i8259a();
+}
+
 /* 
  # Initialize Kernel
  */
@@ -248,6 +238,7 @@ void kernel_init(void)
 	kernel_init_gdt();
 	kernel_init_tss();
 	kernel_init_idt();
+	kernel_init_dev();
 
 	// Print msg.
 	print_set_location(3, 0);

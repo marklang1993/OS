@@ -200,17 +200,7 @@ int_handler_default:
 int_handler_clock:
 
 	; Save user process stack frame
-	pushad
-	push ds
-	push es
-	push fs
-	push gs
-
-	; Set ds, es, fs to the descriptor of ring 0
-	mov ax, ss
-	mov ds, ax
-	mov es, ax
-	mov fs, ax
+	IRQ_SAVE_PROC_FRAME
 	
 	; Display changed character for clock interrupt	
 	mov byte [gs:((80 * 2 + 8) * 2 + 1)], 0fh
