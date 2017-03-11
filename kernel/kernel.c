@@ -1,5 +1,7 @@
 #include "lib.h"
 #include "proc.h"
+#include "drivers/i8253.h"
+#include "drivers/keyboard.h"
 
 // GDT in kernel
 // NOTE: Size of gdt must be same as / larger than the count of gdt in loader.asm
@@ -19,7 +21,6 @@ struct process user_process[USER_PROCESS_COUNT];
 // Stack pointer in kernel
 uint32 kernel_esp;
 
-void keyboard_handler(void);
 void user_main_A(void);
 void user_main_B(void);
 void user_main_C(void);
@@ -215,6 +216,8 @@ static void kernel_init_user_process(uint32 pid, ptr_void_function p_func)
 	// Init. other parameters
 	user_process[pid].ldt_ptr = (SEL_TO_IDX(KERNEL_GDT_FLAT_LDT_0_SELECTOR) + pid) << 3;
 	user_process[pid].pid = pid;
+	user_process[pid].priority = pid;
+	user_process[pid].cycles = 0;
 }
 
 /*
@@ -223,8 +226,10 @@ static void kernel_init_user_process(uint32 pid, ptr_void_function p_func)
 static void kernel_init_dev(void)
 {
 	i8259a_init();
-	i8259a_set_handler(INDEX_8259A_CLOCK, &process_scheduler);
-	i8259a_set_handler(INDEX_8259A_KEYBOARD, &keyboard_handler);
+	i8259a_set_handler(INDEX_8259A_CLOCK, &process_scheduler, NULL);
+	i8259a_set_handler(INDEX_8259A_KEYBOARD, &keyboard_interrupt_handler, &keyboard_failed_interrupt_handler);
+
+	i8253_init();
 }
 
 /* 
@@ -259,15 +264,6 @@ void kernel_main(void)
 	// Print msg.
 	print_set_location(4, 0);
 	print_cstring("Init. User Process OK!");
-}
-
-
-/*
- # Test KeyBoard Handler
- */
-void keyboard_handler(void)
-{
-        print_cstring_pos("KB", 2, 8);
 }
 
 

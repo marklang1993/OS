@@ -49,7 +49,7 @@ extern current_user_process
 
 ; drivers/i8259a.c
 extern i8259a_interrupt_dispatch
-
+extern i8259a_failed_interrupt_dispatch
 
 [section .text]
 

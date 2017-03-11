@@ -42,20 +42,32 @@ i8259a_keep_esp_ %+ %1:
         ; Check recursively calling of a specific handler
         lea ebx, [int_reenter_times + (INTERRUPT_8259A_OFFSET + %1) * 4]
         cmp dword [ebx], 0
-        je process_restart_reenter
-        dec dword [ebx]                 ; Decrease remained re-entry times
+        jne i8259a_goto_dispatch_ %+ %1	; This interrupt can be dispatched
 
-        ; Turn on the interrupt
-        sti
+	; This interrupt cannot be dispatched: insufficient re-enter times
+	push %1					; Pass 8259A interrupt index
+	call i8259a_failed_interrupt_dispatch	; Run 8259A re-enter failed interrupt dispatch function
+	add esp, 4				; Clean stack
+
+	; Go to end processing
+	jmp process_restart_reenter
+
+i8259a_goto_dispatch_ %+ %1:
+	dec dword [ebx]                 ; Decrease remained re-entry times
+
+	; Turn on interrupt
+	sti
 
         ; Run interrupt dispatch function
         push %1				; Pass 8259A interrupt index
         call i8259a_interrupt_dispatch  ; Run 8259A interrupt dispatch function
         add esp, 4                      ; Clean stack
-        mov eax, [current_user_process] ; Load new user process frame
+	
+	; Turn off interrupt
+	cli
 
-        ; Turn off the interrupt
-        cli
+        ; Load new user process frame
+	mov eax, [current_user_process]
 
         ; Increase remained re-entry times
         lea ebx, [int_reenter_times + (INTERRUPT_8259A_OFFSET + %1) * 4]
@@ -66,6 +78,5 @@ i8259a_keep_esp_ %+ %1:
 
         jmp process_restart
 
-
-
 %endmacro
+

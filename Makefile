@@ -1,8 +1,9 @@
 # Makefile for OS #
 
 # Build Target
-OBJECTS = kernel_asm.o kernel_c.o proc.o memory.o print_string.o io_port.o interrupt_asm.o interrupt_c.o print.o
-DRV_OBJECTS = i8259a.o
+OBJECTS = kernel_asm.o kernel_c.o proc.o interrupt_asm.o interrupt_c.o
+LIB_OBJECTS = memory.o buffer.o print_string.o print.o io_port.o
+DRV_OBJECTS = i8259a.o i8253.o keyboard.o
 TARGET = boot.bin loader.bin kernel.bin
 TARGET_IMG = boot.img
 
@@ -26,7 +27,7 @@ LINKER_FLAGS = -m elf_i386 -Ttext 0x50400
 .PHONY : all clean
 
 # Start Position
-all : $(OBJECTS) $(DRV_OBJECTS) $(TARGET) $(TARGET_IMG)
+all : $(OBJECTS) $(LIB_OBJECTS) $(DRV_OBJECTS) $(TARGET) $(TARGET_IMG)
 	   sudo mount -o loop $(TARGET_IMG) /mnt/floppy
 	   sudo cp loader.bin /mnt/floppy/
 	   sudo cp kernel.bin /mnt/floppy/ 
@@ -37,26 +38,18 @@ run :
 clean : 
 	   rm -f $(TARGET)
 	   rm -f $(OBJECTS)
+	   rm -f $(LIB_OBJECTS)
 	   rm -f $(DRV_OBJECTS)
 	   rm -f $(TARGET_IMG)
-
-kernel_c.o : 	kernel/kernel.c
-		$(GCC) $(GCC_FLAGS) -o $@ $<
 
 kernel_asm.o : 	kernel/kernel.asm
 		$(ASM) $(ASM_ELF_FLAGS) -o $@ $<
 
-proc.o : 	kernel/proc.c
+kernel_c.o : 	kernel/kernel.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
-memory.o : 	lib/memory.asm
-		$(ASM) $(ASM_ELF_FLAGS) -o $@ $<
-
-print_string.o : lib/print_string.asm
-		$(ASM) $(ASM_ELF_FLAGS) -o $@ $<
-
-io_port.o : 	lib/io_port.asm
-		$(ASM) $(ASM_ELF_FLAGS) -o $@ $<
+proc.o : 	kernel/proc.c
+		$(GCC) $(GCC_FLAGS) -o $@ $<
 
 interrupt_asm.o : kernel/interrupt.asm
 		$(ASM) $(ASM_ELF_FLAGS) -o $@ $<
@@ -64,10 +57,28 @@ interrupt_asm.o : kernel/interrupt.asm
 interrupt_c.o : kernel/interrupt.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
+memory.o : 	lib/memory.asm
+		$(ASM) $(ASM_ELF_FLAGS) -o $@ $<
+
+buffer.o :	lib/buffer.c
+		$(GCC) $(GCC_FLAGS) -o $@ $<
+
+print_string.o : lib/print_string.asm
+		$(ASM) $(ASM_ELF_FLAGS) -o $@ $<
+
 print.o : 	lib/print.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
+io_port.o : 	lib/io_port.asm
+		$(ASM) $(ASM_ELF_FLAGS) -o $@ $<
+
 i8259a.o :	kernel/drivers/i8259a.c
+		$(GCC) $(GCC_FLAGS) -o $@ $<
+
+i8253.o :	kernel/drivers/i8253.c
+		$(GCC) $(GCC_FLAGS) -o $@ $<
+
+keyboard.o :	kernel/drivers/keyboard.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
 boot.bin : 	boot/boot.asm
@@ -77,7 +88,7 @@ loader.bin : 	boot/loader.asm
 		$(ASM) $(ASM_FLAGS) -o $@ $<
 
 kernel.bin :
-		$(LINKER) $(LINKER_FLAGS) -o $@ $(OBJECTS) $(DRV_OBJECTS)
+		$(LINKER) $(LINKER_FLAGS) -o $@ $(OBJECTS) $(LIB_OBJECTS) $(DRV_OBJECTS)
 
 boot.img : 	boot.bin
 		$(IMG) if=/dev/zero of=$(TARGET_IMG) $(DISK_IMG_FLAGS)
