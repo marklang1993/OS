@@ -19,7 +19,7 @@ struct process user_process[USER_PROCESS_COUNT];
 // Stack pointer in kernel
 uint32 kernel_esp;
 
-
+void keyboard_handler(void);
 void user_main_A(void);
 void user_main_B(void);
 void user_main_C(void);
@@ -169,17 +169,13 @@ static void kernel_init_idt(void)
 	kernel_init_idt_entry(19, &int_entry_simd_float_fault, DPL_0);
 
 	// Other interrupts 20 ~ 255
-	for(i = 20; i < INTERRUPT_COUNT; ++i)
+	for (i = 20; i < INTERRUPT_COUNT; ++i)
 	{
-		if (i == 32)
-		{
-			kernel_init_idt_entry(i, &int_handler_clock, DPL_0);
-		}
-		else
-		{
-			kernel_init_idt_entry(i, &int_handler_default, DPL_0);
-		}
+		kernel_init_idt_entry(i, &int_handler_default, DPL_0);
 	}
+	// 8259A interrupts
+	kernel_init_idt_entry(INTERRUPT_8259A_OFFSET + INDEX_8259A_CLOCK, &int_handler_clock, DPL_0);
+	kernel_init_idt_entry(INTERRUPT_8259A_OFFSET + INDEX_8259A_KEYBOARD, &int_handler_keyboard, DPL_0);
 
 	// # Pointer to Interrupt Descriptor Table
 	idt_ptr.limit = INTERRUPT_COUNT * GATE_DESCRIPTOR_SIZE - 1;
@@ -226,7 +222,9 @@ static void kernel_init_user_process(uint32 pid, ptr_void_function p_func)
  */
 static void kernel_init_dev(void)
 {
-	init_i8259a();
+	i8259a_init();
+	i8259a_set_handler(INDEX_8259A_CLOCK, &process_scheduler);
+	i8259a_set_handler(INDEX_8259A_KEYBOARD, &keyboard_handler);
 }
 
 /* 
@@ -261,6 +259,15 @@ void kernel_main(void)
 	// Print msg.
 	print_set_location(4, 0);
 	print_cstring("Init. User Process OK!");
+}
+
+
+/*
+ # Test KeyBoard Handler
+ */
+void keyboard_handler(void)
+{
+        print_cstring_pos("KB", 2, 8);
 }
 
 

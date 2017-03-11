@@ -1,48 +1,32 @@
 #include "lib.h"
 #include "proc.h"
 
-uint32 process_scheduler_running = 0;	// Flag for checking the scheduler is running or not
+struct process *current_user_process;
 static uint32 scheduler_count = 0;
 
-static void scheduler_main(struct process *user_process[])
+static void scheduler_main()
 {
-/*
-	uint32 i, j, k;
-	uint32 m;
-
-	for(i = 0; i < 10; ++i)
-	{
-		for(j = 0; j < 10; ++j)
-		{
-			for(k = 0; k < 1000; ++k)
-			{
-				++m;
-			}
-		}
-	}
-*/
-
 	uint32 current_pid, next_pid;
 	uint32 offset_idx;
 
-	current_pid = (*user_process) -> pid;
+	current_pid = current_user_process -> pid;
 	next_pid = (current_pid + 1) % USER_PROCESS_COUNT;
 	
 	if(next_pid < current_pid)
 	{
 		// wrap back
 		offset_idx = current_pid - next_pid;
-		*user_process -= offset_idx;
+		current_user_process -= offset_idx;
 	}
 	else
 	{
 		// forward
 		offset_idx = next_pid - current_pid;
-		*user_process += offset_idx;
+		current_user_process += offset_idx;
 	}
 }
 
-void process_scheduler(struct process user_process[])
+void process_scheduler(void)
 {
 	char msg[] = "Scheduler is Running! Current PCB Address: ";
 	char count_str[] = "0000000000";
@@ -52,10 +36,10 @@ void process_scheduler(struct process user_process[])
 	print_cstring_pos(msg, 16, 0);
 
 //	itoa(scheduler_count, count_str);
-	itoa((uint32)user_process, count_str);
+	itoa((uint32)current_user_process, count_str);
 	print_cstring_pos(count_str, 16, pos);
 
 	++scheduler_count;
 
-	scheduler_main(&user_process);
+	scheduler_main();
 }

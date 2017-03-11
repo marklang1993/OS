@@ -21,6 +21,8 @@ extern tss
 extern user_process
 extern kernel_esp
 
+extern int_global_reenter;
+
 global _start		; Export entry function for linker
 global process_restart
 global process_restart_reenter
@@ -68,9 +70,14 @@ Kernel_Start:
 	; # Start the user process of index 0
 process_restart:
 	
+	; Check all interrupt re-enter are done
+	cmp dword [int_global_reenter], 0
+	jne process_restart_reenter	; Not the last re-enter interrupt 
+
+	; Switch esp back to user process stack frame
 	mov [kernel_esp], esp	; Save kernel esp
 	mov esp, eax		; Set esp to the new user process stack frame
-	; # Load LDT
+	; Load LDT
 	lldt [esp + PROCESS_LDT_PTR_OFFSET]
 	; Reset esp_0 on tss - esp position of process table entry for next clock interrupt
         lea eax, [esp + PROCESS_BOTTOM_STACK_FRAME_OFFSET]
@@ -78,12 +85,12 @@ process_restart:
 
 process_restart_reenter:
 
-	; Restore all registers of user process
+	; Restore all registers of user process / Restore all registers of last interrupt
 	pop gs			
 	pop fs
 	pop es
 	pop ds
 	popad
 
-	; Start user process
+	; Restart user process / Restart last interrupt
 	iretd

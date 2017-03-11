@@ -4,6 +4,8 @@
 #ifndef _TYPE_H_
 #define _TYPE_H_
 
+#define 	NULL		0
+
 // Numeric value definitions
 typedef unsigned int 	uint32;
 typedef unsigned short 	uint16;

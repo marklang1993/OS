@@ -19,6 +19,6 @@ DATA_8259A_SLAVE_OCW1           equ             0ffh   ; Disable all interrupts
 DATA_8259A_OCW2                 equ             020h   ; Send EOI to notify 8259A interrupt processed
 
 ; 8259A interrupt index
-INDEX_8259A_CLOCK		equ		0h
-INDEX_8259A_KEYBOARD		equ		1h
+INDEX_8259A_CLOCK		equ		0
+INDEX_8259A_KEYBOARD		equ		1
 

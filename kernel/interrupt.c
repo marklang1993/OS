@@ -2,6 +2,14 @@
 #include "lib.h"
 #include "type.h"
 
+// Interrupt re-enter flag -- For all interrupt
+// 1: No interrupt occurs, need to switch stack once interrupter occurs
+// 0: Interrupt occurs, do not need to switch stack once interrupter occurs
+uint32 int_global_reenter = 0;
+
+// Interrupt re-enter times table - record the allowed re-enter times of an interrupt
+uint32 int_reenter_times[INTERRUPT_COUNT];
+
 
 static const char *interrupt_msg[] = {
 	"division_fault",

@@ -16,9 +16,6 @@
 #define INTERRUPT_COUNT			256
 #define INTERRUPT_8259A_OFFSET		32
 
-// Interrupt re-enter times table - record the allowed re-enter times of an interrupt
-uint32 int_reenter_times[INTERRUPT_COUNT];
-
 // Interrupt related struct
 struct int_plc_stack_frame	// Interrupt (No Error Code, Priviledge Level Change) Stack Frame
 {
@@ -68,5 +65,6 @@ void int_entry_simd_float_fault(void);
 
 void int_handler_default(void);
 void int_handler_clock(void);
+void int_handler_keyboard(void);
 
 #endif

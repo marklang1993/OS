@@ -45,4 +45,7 @@ struct process
 	char name[PROCESS_NAME_LENGTH];		// Name
 };
 
+// Process Functions
+void process_scheduler(void);
+
 #endif

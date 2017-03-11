@@ -27,8 +27,9 @@ global int_entry_alignment_check_fault
 global int_entry_machine_check_abort
 global int_entry_simd_float_fault
 
-global int_handler_clock
 global int_handler_default 
+global int_handler_clock
+global int_handler_keyboard
 
 ; kernel.c
 extern tss
@@ -40,11 +41,15 @@ extern process_restart_reenter
 
 ; interrupt.c
 extern interrupt_handler
+extern int_global_reenter
 extern int_reenter_times
 
 ; proc.c
-extern process_scheduler_running
-extern process_scheduler
+extern current_user_process
+
+; drivers/i8259a.c
+extern i8259a_interrupt_dispatch
+
 
 [section .text]
 
@@ -200,41 +205,10 @@ int_handler_default:
 ; # void int_handler_clock(void)
 ; Handle clock interrupt
 int_handler_clock:
+	I8259A_INT_HANDLER INDEX_8259A_CLOCK
 
-	; Save user process stack frame
-	IRQ_SAVE_PROC_FRAME
-	
-	; Display changed character for clock interrupt	
-	mov byte [gs:((80 * 2 + 8) * 2 + 1)], 0fh
-	inc byte [gs:((80 * 2 + 8) * 2)]
+; # void int_handler_keyboard(void)
+; Handle keyboard interrupt
+int_handler_keyboard:
+	I8259A_INT_HANDLER INDEX_8259A_KEYBOARD
 
-	; Notify 8295A - ready for next interrupt
-	mov al, PORT_8259A_MAIN_0
-	out DATA_8259A_OCW2, al			; Send EOI, activate 8259A
-
-	; Check recursively calling of clock interrupt handler
-	lea ebx, [int_reenter_times + (INTERRUPT_8259A_OFFSET + INDEX_8259A_CLOCK) * 4]
-	cmp dword [ebx], 0
-	je process_restart_reenter
-
-	; Set Flag - process scheduler running
-	xor dword [ebx], 1 
-	
-	; Turn on the interrupt
-	sti
-
-	; Run scheduler
-	mov eax, esp			; Save current stack
-	mov esp, [kernel_esp]		; Switch stack to kernel stack
-	push eax			; Pass parameter : top of the current process table entry
-	call process_scheduler		; Run scheduler
-	pop eax				; Get top of the next process table entry
-
-	; Turn off the interrupt
-	cli
-
-	; Clear Flag - process scheduler running
-	lea ebx, [int_reenter_times + (INTERRUPT_8259A_OFFSET + INDEX_8259A_CLOCK) * 4]	
-	xor dword [ebx], 1 
-
-	jmp process_restart
