@@ -44,7 +44,7 @@ void i8259a_failed_interrupt_dispatch(uint32 index)
 
 
 /*
- # Initialize 8259A driver and chip
+ # Initialize 8259A Driver and Chip
  */
 void i8259a_init(void)
 {

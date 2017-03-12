@@ -138,7 +138,23 @@ void print_cstring(const char *ptr_string)
 }
 
 /*
- # Print an 32-bit unsigned integer
+ # Print a 32-bit unsigned integer with cursor position
+ # NOTE: This is a THREAD-SAFE function.
+ @ value: 32-bit unsigned integer
+ @ row : row position (0 ~ 24)
+ @ col : column position (0 ~ 79)
+*/
+void print_uint32_pos(uint32 value, uint32 row, uint32 col)
+{
+	// 32-bit integer contains at most 8 chars, 9th char for '\0'.
+	char value_str[9];
+
+	itoa(value, value_str);
+	print_cstring_pos(value_str, row, col);
+}
+
+/*
+ # Print a 32-bit unsigned integer
  @ value: 32-bit unsigned integer
 */
 void print_uint32(uint32 value)

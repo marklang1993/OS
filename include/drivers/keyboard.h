@@ -21,4 +21,6 @@
 void keyboard_interrupt_handler(void);
 void keyboard_failed_interrupt_handler(void);
 
+void keyboard_init(void);
+
 #endif

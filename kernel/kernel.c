@@ -230,6 +230,8 @@ static void kernel_init_dev(void)
 	i8259a_set_handler(INDEX_8259A_KEYBOARD, &keyboard_interrupt_handler, &keyboard_failed_interrupt_handler);
 
 	i8253_init();
+
+	keyboard_init();
 }
 
 /* 
@@ -257,9 +259,9 @@ void kernel_init(void)
  */
 void kernel_main(void)
 {
-	kernel_init_user_process(0, &user_main_A);
+	kernel_init_user_process(2, &user_main_A);
 	kernel_init_user_process(1, &user_main_B);
-	kernel_init_user_process(2, &user_main_C);
+	kernel_init_user_process(0, &user_main_C);
 
 	// Print msg.
 	print_set_location(4, 0);
@@ -317,20 +319,15 @@ void user_main_B(void)
  */
 void user_main_C(void)
 {
-	char msg[] = "User Process C is Running: ";
-	char count_str[] = "0000000000";
-	uint32 pos = 0;
-	uint32 count = 0;
+	char tmp[] = "0";
 
-
+	print_set_location(19, 0);
 	while(1)
 	{
-        	pos = strlen(msg);
-        	print_cstring_pos(msg, 19, 0);
-
-       		itoa(count, count_str);
-        	print_cstring_pos(count_str, 19, pos);
-		++count;
+		if(OK == keyboard_getchar(&tmp[0]))
+		{
+        		print_cstring(tmp);
+		}
 	}
 }
 

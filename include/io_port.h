@@ -6,8 +6,8 @@
 
 #include "type.h"
 
-void io_out_byte(uint32 io_port, uint32 data);
-void io_in_byte(uint32 io_port, uint32 *ptr_data);
+void io_out_byte(uint16 io_port, uint8 data);
+void io_in_byte(uint16 io_port, uint8 *ptr_data);
 
 #endif
 

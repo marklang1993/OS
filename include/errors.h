@@ -10,5 +10,6 @@ typedef		int32		rtc;
 #define		EINVARG		-1		// Invalid arguments
 #define		EBUFEMP		-2		// Buffer empty
 #define		EBUFFUL		-3		// Buffer full
+#define		EINVIDX		-4		// Invalid index
 
 #endif
