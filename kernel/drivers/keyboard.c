@@ -1,7 +1,6 @@
 #include "interrupt.h"
 #include "io_port.h"
 #include "buffer.h"
-#include "lib.h"
 #include "drivers/keyboard.h"
 
 /* Keymap related macros */
@@ -11,64 +10,14 @@
 #define KBMAP_COL_SHIFT		1
 #define KBMAP_COL_E0		2
 
-/* Masks */
-#define KBMAP_BREAK_CODE	0x80
-#define KBMAP_UNPRINT		0x100
-
-/* Unprintable keycode */
-#define KBC_ESC			(0 | KBMAP_UNPRINT)
-#define KBC_BACKSPACE		(1 | KBMAP_UNPRINT)
-#define KBC_TAB			(2 | KBMAP_UNPRINT)
-#define KBC_ENTER		(3 | KBMAP_UNPRINT)
-#define KBC_PAD_ENTER		(4 | KBMAP_UNPRINT)
-#define KBC_CTRL_L		(5 | KBMAP_UNPRINT)
-#define KBC_CTRL_R		(6 | KBMAP_UNPRINT)
-#define KBC_SHIFT_L		(7 | KBMAP_UNPRINT)
-#define KBC_PAD_SLASH		(8 | KBMAP_UNPRINT)
-#define KBC_SHIFT_R		(9 | KBMAP_UNPRINT)
-#define KBC_ALT_L		(10 | KBMAP_UNPRINT)
-#define KBC_ALT_R		(11 | KBMAP_UNPRINT)
-#define KBC_CAPS_LOCK		(12 | KBMAP_UNPRINT)
-#define KBC_F1			(13 | KBMAP_UNPRINT)
-#define KBC_F2			(14 | KBMAP_UNPRINT)
-#define KBC_F3			(15 | KBMAP_UNPRINT)
-#define KBC_F4			(16 | KBMAP_UNPRINT)
-#define KBC_F5			(17 | KBMAP_UNPRINT)
-#define KBC_F6			(18 | KBMAP_UNPRINT)
-#define KBC_F7			(19 | KBMAP_UNPRINT)
-#define KBC_F8			(20 | KBMAP_UNPRINT)
-#define KBC_F9			(21 | KBMAP_UNPRINT)
-#define KBC_F10			(22 | KBMAP_UNPRINT)
-#define KBC_NUM_LOCK		(23 | KBMAP_UNPRINT)
-#define KBC_SCROLL_LOCK		(24 | KBMAP_UNPRINT)
-#define KBC_PAD_HOME		(25 | KBMAP_UNPRINT)
-#define KBC_HOME		(26 | KBMAP_UNPRINT)
-#define KBC_PAD_UP		(27 | KBMAP_UNPRINT)
-#define KBC_UP			(28 | KBMAP_UNPRINT)
-#define KBC_PAD_PAGEUP		(29 | KBMAP_UNPRINT)
-#define KBC_PAGEUP		(30 | KBMAP_UNPRINT)
-#define KBC_PAD_MINUS		(31 | KBMAP_UNPRINT)
-#define KBC_PAD_LEFT		(32 | KBMAP_UNPRINT)
-#define KBC_LEFT		(33 | KBMAP_UNPRINT)
-#define KBC_PAD_MID		(34 | KBMAP_UNPRINT)
-#define KBC_PAD_RIGHT		(35 | KBMAP_UNPRINT)
-#define KBC_RIGHT		(36 | KBMAP_UNPRINT)
-#define KBC_PAD_PLUS		(37 | KBMAP_UNPRINT)
-#define KBC_PAD_END		(38 | KBMAP_UNPRINT)
-#define KBC_END			(39 | KBMAP_UNPRINT)
-#define KBC_PAD_DOWN		(40 | KBMAP_UNPRINT)
-#define KBC_DOWN		(41 | KBMAP_UNPRINT)
-#define KBC_PAD_PAGEDOWN	(42 | KBMAP_UNPRINT)
-#define KBC_PAGEDOWN		(43 | KBMAP_UNPRINT)
-#define KBC_PAD_INS		(44 | KBMAP_UNPRINT)
-#define KBC_INSERT		(45 | KBMAP_UNPRINT)
-#define KBC_PAD_DOT		(46 | KBMAP_UNPRINT)
-#define KBC_DELETE		(47 | KBMAP_UNPRINT)
-#define KBC_F11			(48 | KBMAP_UNPRINT)
-#define KBC_F12			(49 | KBMAP_UNPRINT)
-#define KBC_GUI_L		(50 | KBMAP_UNPRINT)
-#define KBC_GUI_R		(51 | KBMAP_UNPRINT)
-#define KBC_APPS		(52 | KBMAP_UNPRINT)
+#define KBMAP_PROCESS_PAD(keycode, charcode)		\
+		case keycode:				\
+			if (IS_TRUE(is_num_lock) && 	\
+				IS_TRUE(is_make_code)) {\
+				data = charcode;	\
+				ret = OK;		\
+			}				\
+			break;				\
 
 /* Keymap for US MF-2 keyboard.
  * NOTE: This is copied from Orange's, and small changes are made. 
@@ -208,8 +157,19 @@ static uint32 keymap[KBMAP_ROWS * KBMAP_COLS] = {
 /* 0x7F - ???		*/	0,		0,		0
 };
 
-/* Scan & Make Code Buffer */
-struct cbuf keyboard_buffer;
+/* Internal Variables */
+static struct cbuf keyboard_buffer;	/* Scan & Make code buffer */
+static BOOL is_shift_r = FALSE;		/* Shift-Right flag */
+static BOOL is_shift_l = FALSE;		/* Shift-Left flag */
+static BOOL is_ctrl_r = FALSE;		/* Ctrl-Right flag */
+static BOOL is_ctrl_l = FALSE;		/* Ctrl-Left flag */
+static BOOL is_alt_r = FALSE;		/* Alt-Right flag */
+static BOOL is_alt_l = FALSE;		/* Alt-Left flag */
+static BOOL is_caps_lock = FALSE;	/* Caps Lock flag */
+static BOOL is_num_lock = FALSE;	/* Number Lock flag */
+static BOOL is_scroll_lock = FALSE;	/* Scroll Lock flag */
+static BOOL is_e0 = FALSE;		/* Keycode E0 flag */
+static BOOL is_e1 = FALSE;		/* Keycode E1 flag */
 
 
 /*
@@ -237,26 +197,163 @@ void keyboard_interrupt_handler(void)
 /*
  # Parse KeyCode
  */
-rtc keyboard_getchar(char *ptr_data)
+rtc keyboard_getchar(uint32 *ptr_data)
 {
 	uint8 keycode, status;
-	uint32 data;
+	uint32 data_index, data;
+	BOOL is_make_code;
+	BOOL is_shift;
 	rtc ret;
 	
-	/* Read cbuf */
+	/* # Read cbuf */
 	ret = cbuf_read(&keyboard_buffer, &keycode);
 	if (EBUFEMP == ret) {
 		return ret;
 	}
 
-	/* Parse */
-	if (keycode < 0x80) {
-		/* Less than 0x80 -> make code */
-		data = keymap[keycode * KBMAP_COLS];
+	/* # Parse */
+	ret = EINVIDX;
+	/* Less than 0x80 -> make code */
+	is_make_code = (keycode < KBMAP_BREAK_CODE) ? TRUE : FALSE;
+
+	/* #1 Key code == E0 or E1 */
+	if (0xe0 == keycode) {
+		is_e0 = TRUE;
+		return ret;
+
+	} else if (0xe1 == keycode) {
+		is_e1 = TRUE;
+		return ret;
+
+	}
+
+	/* #2 Key code == E0 or E1 pressed */
+	if (IS_TRUE(is_e0)) {
+		/* Process key data */
+		data_index = (keycode & 0x7f) * KBMAP_COLS + KBMAP_COL_E0;
+		data = keymap[data_index];
+
 		if(0 == (data & KBMAP_UNPRINT)) {
-			*ptr_data = (char)(data & 0xff);
-			return OK;
+			/* Printable characters */
+			if (IS_TRUE(is_make_code)) {
+				data = data & 0xff;
+				ret = OK;
+
+			} else {
+				/* Do not print break code */
+				;
+			}
+
+		} else {
+
+			/* Unprintable characters */
+			switch (data) {
+
+			case KBC_CTRL_R:
+				is_ctrl_r = IS_TRUE(is_make_code) ? TRUE : FALSE;
+				break;
+
+			case KBC_ALT_R:
+				is_alt_r = IS_TRUE(is_make_code) ? TRUE : FALSE;
+				break;
+
+			case KBC_PAD_SLASH:
+				if (IS_TRUE(is_make_code)) {
+					data = '/';
+					ret = OK;
+				}
+				break;
+
+			}
+		}
+
+		is_e0 = FALSE;
+		*ptr_data = data;
+		return ret;
+
+	} else if (IS_TRUE(is_e1)) {
+
+		is_e1 = FALSE;
+		return ret;
+	}
+
+	/* #3 Other key code */
+	/* Shift & Caps Lock */
+	is_shift = is_shift_r | is_shift_l;
+	is_shift = IS_TRUE(is_caps_lock) ? NOT(is_shift) : is_shift;
+	/* Process key data */
+	data_index = (keycode & 0x7f) * KBMAP_COLS +
+		(IS_TRUE(is_shift) ? KBMAP_COL_SHIFT : KBMAP_COL_RAW);
+	data = keymap[data_index];
+
+	if(0 == (data & KBMAP_UNPRINT)) {
+		/* Printable characters */
+		if (IS_TRUE(is_make_code)) {
+			data = data & 0xff;
+			ret = OK;
+
+		} else {
+			/* Do not print break code */
+			;
+		}
+
+	} else {
+		/* Unprintable characters */
+		switch (data) {
+
+		case KBC_SHIFT_R:
+			is_shift_r = IS_TRUE(is_make_code) ? TRUE : FALSE;
+			break;
+
+		case KBC_SHIFT_L:
+			is_shift_l = IS_TRUE(is_make_code) ? TRUE : FALSE;
+			break;
+
+		case KBC_CAPS_LOCK:
+			if (IS_TRUE(NOT(is_make_code))) {
+				/* Change flag once the key pops up */
+				is_caps_lock = NOT(is_caps_lock);
+			}
+			break;
+
+		case KBC_NUM_LOCK:
+			if (IS_TRUE(NOT(is_make_code))) {
+				/* Change flag once the key pops up */
+				is_num_lock = NOT(is_num_lock);
+			}
+			break;
+
+		case KBC_SCROLL_LOCK:
+			if (IS_TRUE(NOT(is_make_code))) {
+				/* Change flag once the key pops up */
+				is_scroll_lock = NOT(is_scroll_lock);
+			}
+			break;
+
+		case KBC_CTRL_L:
+			is_ctrl_l = IS_TRUE(is_make_code) ? TRUE : FALSE;
+			break;
+
+		case KBC_ALT_L:
+			is_alt_l = IS_TRUE(is_make_code) ? TRUE : FALSE;
+			break;
+
+		KBMAP_PROCESS_PAD(KBC_PAD_HOME, '7')
+		KBMAP_PROCESS_PAD(KBC_PAD_UP, '8')
+		KBMAP_PROCESS_PAD(KBC_PAD_PAGEUP, '9')
+		KBMAP_PROCESS_PAD(KBC_PAD_MINUS, '-')
+		KBMAP_PROCESS_PAD(KBC_PAD_LEFT, '4')
+		KBMAP_PROCESS_PAD(KBC_PAD_MID, '5')
+		KBMAP_PROCESS_PAD(KBC_PAD_RIGHT, '6')
+		KBMAP_PROCESS_PAD(KBC_PAD_PLUS, '+')
+		KBMAP_PROCESS_PAD(KBC_PAD_END, '1')
+		KBMAP_PROCESS_PAD(KBC_PAD_DOWN, '2')
+		KBMAP_PROCESS_PAD(KBC_PAD_PAGEDOWN, '3')
+		KBMAP_PROCESS_PAD(KBC_PAD_INS, '0')
+		KBMAP_PROCESS_PAD(KBC_PAD_DOT, '.')
 		}
 	}
-	return EINVIDX;
+
+	*ptr_data = data;
+	return ret;
 }

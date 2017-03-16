@@ -319,14 +319,19 @@ void user_main_B(void)
  */
 void user_main_C(void)
 {
+	uint32 data;
 	char tmp[] = "0";
 
 	print_set_location(19, 0);
 	while(1)
 	{
-		if(OK == keyboard_getchar(&tmp[0]))
+		if (OK == keyboard_getchar(&data))
 		{
-        		print_cstring(tmp);
+			if (0 == (data & KBMAP_UNPRINT))
+			{
+				tmp[0] = (char)(data & 0xff);
+				print_cstring(tmp);
+			}
 		}
 	}
 }
