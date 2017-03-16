@@ -35,11 +35,9 @@ typedef ptr_void_function i8259a_handler_entry;
 
 // 8259A Functions
 void i8259a_interrupt_dispatch(uint32 index);		// This function is used in interrupt.asm
-void i8259a_failed_interrupt_dispatch(uint32 index);	// This function is used in interrupt.asm
-
 
 void i8259a_init(void);
-rtc i8259a_set_handler(uint32 index, i8259a_handler_entry handler, i8259a_handler_entry failed_handler);
+rtc i8259a_set_handler(uint32 index, i8259a_handler_entry handler);
 rtc i8259a_int_enable(uint32 index);
 rtc i8259a_int_disable(uint32 index);
 

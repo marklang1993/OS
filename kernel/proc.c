@@ -52,9 +52,6 @@ void process_scheduler(void)
 	char count_str[] = "0000000000";
 	uint32 pos = 0;
 
-	// Turn on interrupt
-	sti();	
-
 	// Print Message
 	pos = strlen(msg);
 	print_cstring_pos(msg, 16, 0);
@@ -67,7 +64,4 @@ void process_scheduler(void)
 
 	// Go to real scheduler
 	scheduler_main();
-
-	// Turn off interrupt
-	cli();
 }

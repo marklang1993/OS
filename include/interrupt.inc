@@ -30,30 +30,15 @@ INTERRUPT_8259A_OFFSET		equ		32
         out DATA_8259A_OCW2, al         ; Send EOI, activate 8259A
 
         ; Check interrupt re-enter - whether need to switch stack or not
-        cmp dword [int_global_reenter], 0
-        jne i8259a_keep_esp_ %+ %1
         inc dword [int_global_reenter]
+        cmp dword [int_global_reenter], 1
+        jne i8259a_goto_dispatch_ %+ %1
 
         ; Switch stack to kernel stack
         mov [current_user_process], esp ; Save pointer to current user process frame
         mov esp, [kernel_esp]
 
-i8259a_keep_esp_ %+ %1:
-        ; Check recursively calling of a specific handler
-        lea ebx, [int_reenter_times + (INTERRUPT_8259A_OFFSET + %1) * 4]
-        cmp dword [ebx], 0
-        jne i8259a_goto_dispatch_ %+ %1	; This interrupt can be dispatched
-
-	; This interrupt cannot be dispatched: insufficient re-enter times
-	push %1					; Pass 8259A interrupt index
-	call i8259a_failed_interrupt_dispatch	; Run 8259A re-enter failed interrupt dispatch function
-	add esp, 4				; Clean stack
-
-	; Go to end processing
-	jmp process_restart_reenter
-
 i8259a_goto_dispatch_ %+ %1:
-	dec dword [ebx]                 ; Decrease remained re-entry times
 
 	; Turn on interrupt
 	sti
@@ -68,10 +53,6 @@ i8259a_goto_dispatch_ %+ %1:
 
         ; Load new user process frame
 	mov eax, [current_user_process]
-
-        ; Increase remained re-entry times
-        lea ebx, [int_reenter_times + (INTERRUPT_8259A_OFFSET + %1) * 4]
-        inc dword [ebx]
 
         ; Decrease global re-enter times 
         dec dword [int_global_reenter]

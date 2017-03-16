@@ -226,8 +226,8 @@ static void kernel_init_user_process(uint32 pid, ptr_void_function p_func)
 static void kernel_init_dev(void)
 {
 	i8259a_init();
-	i8259a_set_handler(INDEX_8259A_CLOCK, &process_scheduler, NULL);
-	i8259a_set_handler(INDEX_8259A_KEYBOARD, &keyboard_interrupt_handler, &keyboard_failed_interrupt_handler);
+	i8259a_set_handler(INDEX_8259A_CLOCK, &process_scheduler);
+	i8259a_set_handler(INDEX_8259A_KEYBOARD, &keyboard_interrupt_handler);
 
 	i8253_init();
 

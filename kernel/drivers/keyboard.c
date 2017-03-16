@@ -4,18 +4,18 @@
 #include "lib.h"
 #include "drivers/keyboard.h"
 
-// Keymap related macros
+/* Keymap related macros */
 #define KBMAP_ROWS		0x80
 #define KBMAP_COLS		3
 #define KBMAP_COL_RAW		0
 #define KBMAP_COL_SHIFT		1
 #define KBMAP_COL_E0		2
 
-// Masks
+/* Masks */
 #define KBMAP_BREAK_CODE	0x80
 #define KBMAP_UNPRINT		0x100
 
-// Unprintable keycode
+/* Unprintable keycode */
 #define KBC_ESC			(0 | KBMAP_UNPRINT)
 #define KBC_BACKSPACE		(1 | KBMAP_UNPRINT)
 #define KBC_TAB			(2 | KBMAP_UNPRINT)
@@ -70,11 +70,12 @@
 #define KBC_GUI_R		(51 | KBMAP_UNPRINT)
 #define KBC_APPS		(52 | KBMAP_UNPRINT)
 
-// Keymap for US MF-2 keyboard.
-// NOTE: This copies from Orange's, and small changes are made. 
-// Format : |XX XX XX XX XX XX XX | XX |
-//                  Flags          Data
-uint32 keymap[KBMAP_ROWS * KBMAP_COLS] = {
+/* Keymap for US MF-2 keyboard.
+ * NOTE: This is copied from Orange's, and small changes are made. 
+ * Format : |XX XX XX XX XX XX XX | XX |
+ *                  Flags          Data
+ */
+static uint32 keymap[KBMAP_ROWS * KBMAP_COLS] = {
 /* scan-code			!Shift		Shift		E0 XX	*/
 /* ==================================================================== */
 /* 0x00 - none		*/	0,		0,		0,
@@ -207,8 +208,9 @@ uint32 keymap[KBMAP_ROWS * KBMAP_COLS] = {
 /* 0x7F - ???		*/	0,		0,		0
 };
 
-// Scan & Make Code Buffer 
+/* Scan & Make Code Buffer */
 struct cbuf keyboard_buffer;
+
 
 /*
  # Initialize Keyboard Driver
@@ -226,31 +228,11 @@ void keyboard_interrupt_handler(void)
 {
 	uint8 data;
 
-	// Read one code and save it to the buffer	
+	/* Read one code and save it to the buffer */
 	io_in_byte(PORT_8042_BUF_R, &data);
 	cbuf_write(&keyboard_buffer, data);
 }
 
-/*
- # Keyboard Re-enter Failed Interrupt Handler
- */
-void keyboard_failed_interrupt_handler(void)
-{
-	uint8 status, data;
-	
-	do
-	{
-		// At least 1 scan code needs to be read
-		io_in_byte(PORT_8042_BUF_R, &data);
-		
-		// Check status
-		io_in_byte(PORT_8042_STAT_R, &status);
-		status &= MASK_8042_OUT_BUF;
-	}
-	while(status != 0);	
-		
-	print_cstring_pos("*", 2, 8);
-}
 
 /*
  # Parse KeyCode
@@ -261,34 +243,17 @@ rtc keyboard_getchar(char *ptr_data)
 	uint32 data;
 	rtc ret;
 	
-	// Read cbuf
+	/* Read cbuf */
 	ret = cbuf_read(&keyboard_buffer, &keycode);
-	if (EBUFEMP == ret)
-	{
-		/*
-		// Check status
-		io_in_byte(PORT_8042_STAT_R, &status);
-		status &= MASK_8042_OUT_BUF;
-		if (status != 0)
-		{
-			// Try to read 8042 again
-			keyboard_interrupt_handler();
-			ret = cbuf_read(&keyboard_buffer, &keycode);
-			if (EBUFEMP == ret)
-			{
-				return ret;
-			}
-		}	
-		*/
+	if (EBUFEMP == ret) {
 		return ret;
 	}
 
-	// Parse
-	if (keycode < 0x80)
-	{
+	/* Parse */
+	if (keycode < 0x80) {
+		/* Less than 0x80 -> make code */
 		data = keymap[keycode * KBMAP_COLS];
-		if(0 == (data & KBMAP_UNPRINT))
-		{
+		if(0 == (data & KBMAP_UNPRINT)) {
 			*ptr_data = (char)(data & 0xff);
 			return OK;
 		}
