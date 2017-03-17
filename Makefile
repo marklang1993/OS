@@ -3,7 +3,7 @@
 # Build Target
 OBJECTS = kernel_asm.o kernel_c.o proc.o interrupt_asm.o interrupt_c.o
 LIB_OBJECTS = memory.o buffer.o print_string.o print.o io_port.o
-DRV_OBJECTS = i8259a.o i8253.o keyboard.o
+DRV_OBJECTS = i8259a.o i8253.o keyboard.o vga.o
 TARGET = boot.bin loader.bin kernel.bin
 TARGET_IMG = boot.img
 
@@ -79,6 +79,9 @@ i8253.o :	kernel/drivers/i8253.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
 keyboard.o :	kernel/drivers/keyboard.c
+		$(GCC) $(GCC_FLAGS) -o $@ $<
+
+vga.o :		kernel/drivers/vga.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
 boot.bin : 	boot/boot.asm

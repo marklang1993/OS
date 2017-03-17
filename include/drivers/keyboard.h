@@ -77,7 +77,7 @@
 #define KBC_GUI_R               (51 | KBMAP_UNPRINT)
 #define KBC_APPS                (52 | KBMAP_UNPRINT)
 
-// Keyboard Functions
+/* Keyboard Functions */
 void keyboard_interrupt_handler(void);
 
 void keyboard_init(void);

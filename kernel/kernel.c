@@ -2,6 +2,7 @@
 #include "proc.h"
 #include "drivers/i8253.h"
 #include "drivers/keyboard.h"
+#include "drivers/vga.h"
 
 // GDT in kernel
 // NOTE: Size of gdt must be same as / larger than the count of gdt in loader.asm
@@ -323,14 +324,22 @@ void user_main_C(void)
 	char tmp[] = "0";
 
 	print_set_location(19, 0);
-	while(1)
-	{
-		if (OK == keyboard_getchar(&data))
-		{
-			if (0 == (data & KBMAP_UNPRINT))
-			{
+	while(1) {
+		data = 0;	/* Clean the data */
+
+		if (OK == keyboard_getchar(&data)) {
+			if (0 == (data & KBMAP_UNPRINT)) {
 				tmp[0] = (char)(data & 0xff);
 				print_cstring(tmp);
+			}
+
+		} else {
+			if (data == KBC_PAGEDOWN) {
+				vga_roll_down_screen();
+
+			} else if (data == KBC_PAGEUP) {
+				vga_roll_up_screen();
+
 			}
 		}
 	}

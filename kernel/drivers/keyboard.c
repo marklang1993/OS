@@ -241,7 +241,7 @@ rtc keyboard_getchar(uint32 *ptr_data)
 
 			} else {
 				/* Do not print break code */
-				;
+				data = (data & 0xff) | KBMAP_BREAK_CODE;
 			}
 
 		} else {
@@ -294,7 +294,7 @@ rtc keyboard_getchar(uint32 *ptr_data)
 
 		} else {
 			/* Do not print break code */
-			;
+			data = (data & 0xff) | KBMAP_BREAK_CODE;
 		}
 
 	} else {

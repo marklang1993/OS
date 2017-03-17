@@ -1,7 +1,5 @@
 #include "lib.h"
-
-#define MAX_ROW_COUNT	25
-#define MAX_COL_COUNT	80
+#include "drivers/vga.h"
 
 // Cursor position (25*80)
 static uint32 print_row = 0;
@@ -85,7 +83,7 @@ uint32 strlen(const char *str)
 void print_set_location(uint32 row, uint32 col)
 {
 	// Validate
-	if (row < MAX_ROW_COUNT && col < MAX_COL_COUNT)
+	if (row < COUNT_CRT_MAX_ROW && col < COUNT_CRT_MAX_COL)
 	{
 		print_row = row;
 		print_col = col;
@@ -120,16 +118,19 @@ void print_cstring(const char *ptr_string)
 	length = strlen(ptr_string);
 	print_string(ptr_string, length, row_pos, col_pos);
 	
-	// Calculate new cursor position
+	/* Set cursor */
+	vga_set_cursor_location(row_pos, col_pos);
+
+	/* Calculate new cursor position */
 	col_pos += length;
-	if(col_pos >= MAX_COL_COUNT)
+	if(col_pos >= COUNT_CRT_MAX_COL)
 	{
 		++row_pos;
-		col_pos = col_pos % MAX_COL_COUNT;
+		col_pos = col_pos % COUNT_CRT_MAX_COL;
 	}
-	if(row_pos >= MAX_ROW_COUNT)
+	if(row_pos >= COUNT_CRT_MAX_ROW)
 	{
-		// Wrap back to line 0
+		/* Wrap back to line 0 */
 		row_pos = 0;
 	}
 
