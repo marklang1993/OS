@@ -2,7 +2,7 @@
 
 # Build Target
 OBJECTS = kernel_asm.o kernel_c.o proc.o interrupt_asm.o interrupt_c.o
-LIB_OBJECTS = memory.o buffer.o print_string.o print.o io_port.o
+LIB_OBJECTS = kheap.o memory.o buffer.o print_string.o print.o io_port.o
 DRV_OBJECTS = i8259a.o i8253.o keyboard.o vga.o
 TARGET = boot.bin loader.bin kernel.bin
 TARGET_IMG = boot.img
@@ -55,6 +55,9 @@ interrupt_asm.o : kernel/interrupt.asm
 		$(ASM) $(ASM_ELF_FLAGS) -o $@ $<
 
 interrupt_c.o : kernel/interrupt.c
+		$(GCC) $(GCC_FLAGS) -o $@ $<
+
+kheap.o :	lib/kheap.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
 memory.o : 	lib/memory.asm

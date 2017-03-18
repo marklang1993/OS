@@ -42,7 +42,6 @@ extern process_restart_reenter
 ; interrupt.c
 extern interrupt_handler
 extern int_global_reenter
-extern int_reenter_times
 
 ; proc.c
 extern current_user_process

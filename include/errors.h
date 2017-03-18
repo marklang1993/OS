@@ -11,5 +11,8 @@ typedef		int32		rtc;
 #define		EBUFEMP		-2		// Buffer empty
 #define		EBUFFUL		-3		// Buffer full
 #define		EINVIDX		-4		// Invalid index
+#define		ENOTINIT	-5		// NOT initialized
+#define		EHEAPMEM	-6		// Heap memory error
+#define		EINVPTR		-7		// Invalid pointer
 
 #endif
