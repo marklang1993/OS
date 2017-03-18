@@ -245,9 +245,8 @@ void kernel_init(void)
 	kernel_init_tss();
 	kernel_init_idt();
 
-	// Init. other data
+	// Init. devices
 	kernel_init_dev();
-	interrupt_reenter_times_init();
 
 	// Print msg.
 	print_set_location(3, 0);
@@ -300,14 +299,16 @@ void user_main_B(void)
 {
 	char msg[] = "User Process B is Running: ";
 	char count_str[] = "0000000000";
+	struct vga_char vmsg[50];
 	uint32 pos = 0;
 	uint32 count = 0;
 
+	cstr_to_vga_str(vmsg, msg);
 
 	while(1)
 	{
         	pos = strlen(msg);
-        	print_cstring_pos(msg, 18, 0);
+		vga_write_screen(18, 0, vmsg, strlen(msg));
 
        		itoa(count, count_str);
         	print_cstring_pos(count_str, 18, pos);
@@ -334,10 +335,10 @@ void user_main_C(void)
 			}
 
 		} else {
-			if (data == KBC_PAGEDOWN) {
+			if (data == KBC_DOWN && (data & KBMAP_BREAK_CODE) == 0) {
 				vga_roll_down_screen();
 
-			} else if (data == KBC_PAGEUP) {
+			} else if (data == KBC_UP && (data & KBMAP_BREAK_CODE) == 0) {
 				vga_roll_up_screen();
 
 			}

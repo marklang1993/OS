@@ -20,6 +20,9 @@ memcpy:
 	mov esi, [ss:(ebp+12)]	; Get src. address (wrt. ds)
 	mov edi, [ss:(ebp+8)]	; Get dst. address (wrt. ds)
 
+	cmp ecx, 0		; Check size
+	je memcpy_End
+
 memcpy_Loop:
 	mov al, [ds:esi]	; Get 1 byte from src. address
 	mov [ds:edi], al	; Write 1 byte to dst. address
@@ -27,6 +30,7 @@ memcpy_Loop:
 	inc edi			; edi++
 	loop memcpy_Loop
 
+memcpy_End:
 	pop edi			; Restore changed registers
 	pop esi
 	pop ecx
@@ -52,11 +56,15 @@ memset:
 	mov eax, [ss:(ebp+12)]	; Get value
 	mov edi, [ss:(ebp+8)]	; Get address (wrt. ds)
 
+	cmp ecx, 0		; Check size
+	je memset_End
+
 memset_Loop:
 	mov [ds:edi], al	; Write 1 byte to dst. address
 	inc edi			; edi++
 	loop memset_Loop
 
+memset_End:
 	pop edi			; Restore changed registers
 	pop ecx
 	pop eax

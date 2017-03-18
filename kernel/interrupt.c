@@ -8,10 +8,6 @@
  */
 uint32 int_global_reenter = 0;
 
-// Interrupt re-enter times table - record the allowed re-enter times of an interrupt
-uint32 int_reenter_times[INTERRUPT_COUNT];
-
-
 static const char *interrupt_msg[] = {
 	"division_fault",
 	"debug_exception",
@@ -51,14 +47,5 @@ void interrupt_handler(uint32 vector_no, uint32 error_code, uint32 eip, uint32 c
 	print_uint32(eip);
 	print_cstring("; CS: ");
 	print_uint32(cs);
-}
-
-void interrupt_reenter_times_init(void)
-{
-	uint32 i;
-	for (i = 0; i < INTERRUPT_COUNT; ++i)
-	{
-		int_reenter_times[i] = 1;
-	}
 }
 

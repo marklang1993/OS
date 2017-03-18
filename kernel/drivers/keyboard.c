@@ -265,6 +265,9 @@ rtc keyboard_getchar(uint32 *ptr_data)
 				break;
 
 			}
+
+			/* Process break code */
+			data |= IS_TRUE(is_make_code) ? 0 : KBMAP_BREAK_CODE;
 		}
 
 		is_e0 = FALSE;
@@ -352,6 +355,9 @@ rtc keyboard_getchar(uint32 *ptr_data)
 		KBMAP_PROCESS_PAD(KBC_PAD_INS, '0')
 		KBMAP_PROCESS_PAD(KBC_PAD_DOT, '.')
 		}
+
+		/* Process break code */
+		data |= IS_TRUE(is_make_code) ? 0 : KBMAP_BREAK_CODE;
 	}
 
 	*ptr_data = data;

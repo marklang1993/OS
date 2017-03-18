@@ -37,8 +37,6 @@ struct int_stack_frame		// Interrupt (No Error Code, No Priviledge Level Change)
 void sti(void);
 void cli(void);
 
-void interrupt_reenter_times_init(void);
-
 // Interrupt handlers
 typedef ptr_void_function int_handler;		// Function pointer of interrupt handler
 

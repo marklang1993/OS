@@ -9,3 +9,6 @@ KERNEL_GDT_FLAT_LDT_0_Selector          equ             5 << 3
 
 ; TSS
 TSS_ESP_0_OFFSET			equ		4
+
+; New Stack Range (10000h ~ 4ffffh)
+KERNEL_ESP				equ		50000h

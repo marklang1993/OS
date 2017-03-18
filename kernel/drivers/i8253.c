@@ -34,5 +34,4 @@ void i8253_init(void)
 	counter_val = FEQ_8253 / (1000 / INTERVAL_8253);
 	io_out_byte(PORT_8253_COUNTER_0, (counter_val & 0xff));
 	io_out_byte(PORT_8253_COUNTER_0, ((counter_val & 0xff00) >> 8));
-
 }

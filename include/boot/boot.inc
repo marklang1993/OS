@@ -4,7 +4,7 @@
 ; Stack - Address Range		(1000h:FFFCh~1000h:0000h = 64 KB - 8B)
 StackSegment 			equ 		01000h
 StackOffset	   		equ 		0fffch
-StackBaseOffset	   		equ 		StackSegment * 10h + StackOffset - 4h		; Used in protect mode, ss: GDT_STACK_DRW
+StackBaseOffset	   		equ 		StackSegment * 10h + StackOffset		; Used in protect mode, ss: GDT_STACK_DRW
 
 ; Common Buffer - Address Range (2000h:0000h~2000h:FFFFh = 64 KB)
 BufferSegment			equ		02000h

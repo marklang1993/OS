@@ -55,6 +55,9 @@ Kernel_Start:
 	push dword 0
 	popfd
 
+	; Reset esp to kernel esp
+	mov esp, KERNEL_ESP
+
 	sti			; Enable interrupt
 	int 80h			; 0x80 interrupt test
 	
