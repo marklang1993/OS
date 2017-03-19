@@ -4,11 +4,8 @@
 #include "errors.h"
 #include "type.h"
 
-/* KHeap Memory Area */
-#define ADDR_KHEAP_BASE			0x200000	/* KHeap start from 0x200000 */
-#define ADDR_KHEAP_LIMIT		0x100000	/* KHeap size = 0x100000 (1MB) */
-
-#define SIZE_KHEAP_BLOCK		0x4		/* Each block has 4-byte size */
+/* Size of each block in kernel heap */
+#define SIZE_KHEAP_BLOCK		0x4
 
 
 /* This struct must be the integral multiples of SIZE_KHEAP_BLOCK */

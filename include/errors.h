@@ -14,5 +14,6 @@ typedef		int32		rtc;
 #define		ENOTINIT	-5		// NOT initialized
 #define		EHEAPMEM	-6		// Heap memory error
 #define		EINVPTR		-7		// Invalid pointer
+#define		EOUTMEM		-8		// Out of memory
 
 #endif

@@ -4,6 +4,8 @@
 #include "drivers/keyboard.h"
 
 /* Keymap related macros */
+#define KB_BUF_CAPA		16
+
 #define KBMAP_ROWS		0x80
 #define KBMAP_COLS		3
 #define KBMAP_COL_RAW		0
@@ -177,7 +179,7 @@ static BOOL is_e1 = FALSE;		/* Keycode E1 flag */
  */
 void keyboard_init(void)
 {
-	cbuf_init(&keyboard_buffer);
+	cbuf_init(&keyboard_buffer, KB_BUF_CAPA);
 }
 
 
@@ -186,11 +188,11 @@ void keyboard_init(void)
  */
 void keyboard_interrupt_handler(void)
 {
-	uint8 data;
+	uint8 keycode;
 
 	/* Read one code and save it to the buffer */
-	io_in_byte(PORT_8042_BUF_R, &data);
-	cbuf_write(&keyboard_buffer, data);
+	io_in_byte(PORT_8042_BUF_R, &keycode);
+	cbuf_write(&keyboard_buffer, (uint32)keycode);
 }
 
 
@@ -199,7 +201,7 @@ void keyboard_interrupt_handler(void)
  */
 rtc keyboard_getchar(uint32 *ptr_data)
 {
-	uint8 keycode, status;
+	uint32 keycode;
 	uint32 data_index, data;
 	BOOL is_make_code;
 	BOOL is_shift;

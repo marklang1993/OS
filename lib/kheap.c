@@ -1,6 +1,11 @@
 #include "kheap.h"
 #include "memory.h"
 
+/* Kernel Heap Memory Area */
+#define ADDR_KHEAP_BASE			0x200000	/* KHeap start from 0x200000 */
+#define ADDR_KHEAP_LIMIT		0x100000	/* KHeap size = 0x100000 (1MB) */
+
+/* Kernel Heap Root Node */
 static struct kheap_node *kheap_base = NULL;
 
 
@@ -15,6 +20,7 @@ void init_kheap(void)
 	kheap_base->is_free = TRUE;
 	kheap_base->next = NULL;
 }
+
 
 /*
  # Allocate kernel heap memory
@@ -35,6 +41,11 @@ void *kmalloc(uint32 count)
 	/* Check base node */
 	if (NULL == kheap_base) {
 		return mem;
+	}
+
+	/* Check count */
+	if (0 == count) {
+		return EINVARG;
 	}
 
 	/* Search */
@@ -99,6 +110,7 @@ void *kmalloc(uint32 count)
 	return mem;
 }
 
+
 /*
  # Deallocated kernel heap memory
  @ kheap_mem : allocated memory pointer
@@ -113,6 +125,11 @@ rtc kfree(void *kheap_mem)
 	/* Check base node */
 	if (NULL == kheap_base) {
 		return ENOTINIT;
+	}
+
+	/* Check kheap_mem */
+	if (NULL == kheap_mem) {
+		return EINVARG;
 	}
 
 	/* Search */
@@ -170,6 +187,7 @@ rtc kfree(void *kheap_mem)
 void krealloc(void *kheap_mem, uint32 count)
 {
 }
+
 
 void kchk_mem(void *kheap_mem, uint32 count)
 {

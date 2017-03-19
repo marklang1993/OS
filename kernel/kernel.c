@@ -241,18 +241,18 @@ static void kernel_init_dev(void)
  */
 void kernel_init(void)
 {
-	// Init. all kernel data structures
+	/* Init. all kernel data structures */
 	kernel_init_gdt();
 	kernel_init_tss();
 	kernel_init_idt();
 
-	// Init. devices
-	kernel_init_dev();
-
-	// Init. kernel heap
+	/* Init. kernel heap */
 	init_kheap();
 
-	// Print msg.
+	/* Init. devices */
+	kernel_init_dev();
+
+	/* Print message */
 	print_set_location(3, 0);
 	print_cstring("Kernel is Running!");
 }
@@ -263,43 +263,11 @@ void kernel_init(void)
  */
 void kernel_main(void)
 {
-	void *kmem1, *kmem2, *kmem3;
+	/* Init. and start user process*/
 
 	kernel_init_user_process(2, &user_main_A);
 	kernel_init_user_process(1, &user_main_B);
 	kernel_init_user_process(0, &user_main_C);
-
-	// Print msg.
-	print_set_location(4, 0);
-	print_cstring("Init. User Process OK!");
-
-	// kmalloc test
-	kmem1 = kmalloc(5);
-	kmem2 = kmalloc(8);
-	kmem3 = kmalloc(12);
-
-	print_cstring(" ");
-	print_uint32((uint32)kmem1);
-	print_cstring(" ");
-	print_uint32((uint32)kmem2);
-	print_cstring(" ");
-	print_uint32((uint32)kmem3);
-
-//	kfree(kmem3);
-//	kfree(kmem2);
-	kfree(kmem1);
-
-	kmem1 = kmem2;
-	kmem2 = kmalloc(9);
-//	kmem3 = NULL;
-
-	print_cstring(" ");
-	print_uint32((uint32)kmem1);
-	print_cstring(" ");
-	print_uint32((uint32)kmem2);
-	print_cstring(" ");
-	print_uint32((uint32)kmem3);
-
 }
 
 

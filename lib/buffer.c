@@ -1,26 +1,28 @@
 #include "buffer.h"
 #include "interrupt.h"
+#include "kheap.h"
 
 /*
  # Initialize a Circular Buffer
- @ ptr_cbuf : Pointer to a circular buffer 
+ @ ptr_cbuf	: pointer to a circular buffer
+ @ count	: count of elements in buffer
  */
-rtc cbuf_init(struct cbuf *ptr_cbuf)
+rtc cbuf_init(struct cbuf *ptr_cbuf, uint32 count)
 {
-	// Check pointer of cbuf
-	if(NULL == ptr_cbuf)
-	{
+	/* Check pointer of cbuf */
+	if (NULL == ptr_cbuf) {
 		return EINVARG;
 	}
 
-	cli();
-
+	ptr_cbuf->capacity = count;
 	ptr_cbuf->count = 0;
 	ptr_cbuf->head = 0;
 	ptr_cbuf->tail = 0;
-	memset(ptr_cbuf, 0, SIZE_CIRCULAR_BUFFER);		
+	ptr_cbuf->data = kmalloc(count * sizeof(uint32));
 
-	sti();
+	if (NULL == ptr_cbuf->data) {
+		return EOUTMEM;
+	}
 
 	return OK;
 }
@@ -30,7 +32,7 @@ rtc cbuf_init(struct cbuf *ptr_cbuf)
  @ ptr_cbuf : Pointer to a circular buffer 
  @ ptr_val  : Pointer to an output value variable
  */
-rtc cbuf_read(struct cbuf *ptr_cbuf, uint8 *ptr_val)
+rtc cbuf_read(struct cbuf *ptr_cbuf, uint32 *ptr_val)
 {
 	// Check pointer of cbuf & val
 	if(NULL == ptr_cbuf || NULL == ptr_val)
@@ -49,7 +51,7 @@ rtc cbuf_read(struct cbuf *ptr_cbuf, uint8 *ptr_val)
 
 	ptr_cbuf->count -= 1;
 	*ptr_val = ptr_cbuf->data[ptr_cbuf->tail];
-	ptr_cbuf->tail = (ptr_cbuf->tail + 1) % SIZE_CIRCULAR_BUFFER;
+	ptr_cbuf->tail = (ptr_cbuf->tail + 1) % ptr_cbuf->capacity;
 
 	sti();
 
@@ -61,7 +63,7 @@ rtc cbuf_read(struct cbuf *ptr_cbuf, uint8 *ptr_val)
  @ ptr_cbuf : Pointer to a circular buffer 
  @ val      : Input value
  */
-rtc cbuf_write(struct cbuf *ptr_cbuf, uint8 val)
+rtc cbuf_write(struct cbuf *ptr_cbuf, uint32 val)
 {
 	// Check pointer of cbuf
 	if(NULL == ptr_cbuf)
@@ -71,7 +73,7 @@ rtc cbuf_write(struct cbuf *ptr_cbuf, uint8 val)
 
 	cli();
 
-	if (ptr_cbuf->count == SIZE_CIRCULAR_BUFFER)
+	if (ptr_cbuf->count == ptr_cbuf->capacity)
 	{
 		// Buffer is full
 		sti();
@@ -80,7 +82,7 @@ rtc cbuf_write(struct cbuf *ptr_cbuf, uint8 val)
 
 	ptr_cbuf->count += 1;
 	ptr_cbuf->data[ptr_cbuf->head] = val;
-	ptr_cbuf->head = (ptr_cbuf->head + 1) % SIZE_CIRCULAR_BUFFER;
+	ptr_cbuf->head = (ptr_cbuf->head + 1) % ptr_cbuf->capacity;
 
 	sti();
 
