@@ -17,7 +17,6 @@
 			if (IS_TRUE(is_num_lock) && 	\
 				IS_TRUE(is_make_code)) {\
 				data = charcode;	\
-				ret = OK;		\
 			}				\
 			break;				\
 
@@ -214,18 +213,17 @@ rtc keyboard_getchar(uint32 *ptr_data)
 	}
 
 	/* # Parse */
-	ret = EINVIDX;
 	/* Less than 0x80 -> make code */
 	is_make_code = (keycode < KBMAP_BREAK_CODE) ? TRUE : FALSE;
 
 	/* #1 Key code == E0 or E1 */
 	if (0xe0 == keycode) {
 		is_e0 = TRUE;
-		return ret;
+		return EINVIDX;
 
 	} else if (0xe1 == keycode) {
 		is_e1 = TRUE;
-		return ret;
+		return EINVIDX;
 
 	}
 
@@ -239,7 +237,6 @@ rtc keyboard_getchar(uint32 *ptr_data)
 			/* Printable characters */
 			if (IS_TRUE(is_make_code)) {
 				data = data & 0xff;
-				ret = OK;
 
 			} else {
 				/* Do not print break code */
@@ -262,7 +259,6 @@ rtc keyboard_getchar(uint32 *ptr_data)
 			case KBC_PAD_SLASH:
 				if (IS_TRUE(is_make_code)) {
 					data = '/';
-					ret = OK;
 				}
 				break;
 
@@ -274,12 +270,12 @@ rtc keyboard_getchar(uint32 *ptr_data)
 
 		is_e0 = FALSE;
 		*ptr_data = data;
-		return ret;
+		return OK;
 
 	} else if (IS_TRUE(is_e1)) {
 
 		is_e1 = FALSE;
-		return ret;
+		return EINVIDX;
 	}
 
 	/* #3 Other key code */
@@ -295,7 +291,6 @@ rtc keyboard_getchar(uint32 *ptr_data)
 		/* Printable characters */
 		if (IS_TRUE(is_make_code)) {
 			data = data & 0xff;
-			ret = OK;
 
 		} else {
 			/* Do not print break code */
@@ -363,5 +358,5 @@ rtc keyboard_getchar(uint32 *ptr_data)
 	}
 
 	*ptr_data = data;
-	return ret;
+	return OK;
 }

@@ -18,7 +18,7 @@ rtc cbuf_init(struct cbuf *ptr_cbuf, uint32 count)
 	ptr_cbuf->count = 0;
 	ptr_cbuf->head = 0;
 	ptr_cbuf->tail = 0;
-	ptr_cbuf->data = kmalloc(count * sizeof(uint32));
+	ptr_cbuf->data = (uint32 *)kmalloc(count * sizeof(uint32));	/* Convert to byte count */
 
 	if (NULL == ptr_cbuf->data) {
 		return EOUTMEM;

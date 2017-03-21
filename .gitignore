@@ -1,4 +1,6 @@
 # Target & Test Images
+*.o
+*.bin
 *.img
 
 # geditor Temporary Files

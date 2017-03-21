@@ -3,6 +3,7 @@
 #include "proc.h"
 #include "drivers/i8253.h"
 #include "drivers/keyboard.h"
+#include "drivers/tty.h"
 #include "drivers/vga.h"
 
 // GDT in kernel
@@ -16,6 +17,9 @@ struct descriptor_ptr idt_ptr;
 
 // TSS in kernel
 struct task_state_segment tss;
+
+// TTY in kernel
+struct tty ttys[3];
 
 // Process in kernel
 struct process user_process[USER_PROCESS_COUNT];
@@ -227,13 +231,22 @@ static void kernel_init_user_process(uint32 pid, ptr_void_function p_func)
  */
 static void kernel_init_dev(void)
 {
+	/* 8259A interrupt */
 	i8259a_init();
 	i8259a_set_handler(INDEX_8259A_CLOCK, &process_scheduler);
 	i8259a_set_handler(INDEX_8259A_KEYBOARD, &keyboard_interrupt_handler);
 
+	/* 8253 PIT */
 	i8253_init();
 
+	/* keyboard */
 	keyboard_init();
+
+	/* TTYs */
+	tty_init(&ttys[0], 0, TRUE);
+	tty_init(&ttys[1], 50, FALSE);
+	tty_init(&ttys[2], 100, FALSE);
+
 }
 
 /* 
@@ -263,8 +276,7 @@ void kernel_init(void)
  */
 void kernel_main(void)
 {
-	/* Init. and start user process*/
-
+	/* Init. user process */
 	kernel_init_user_process(2, &user_main_A);
 	kernel_init_user_process(1, &user_main_B);
 	kernel_init_user_process(0, &user_main_C);
@@ -301,21 +313,25 @@ void user_main_B(void)
 {
 	char msg[] = "User Process B is Running: ";
 	char count_str[] = "0000000000";
-	struct vga_char vmsg[50];
-	uint32 pos = 0;
+	struct vga_char *vmsg = kmalloc(sizeof(struct vga_char) * sizeof(msg));
+	uint32 row;
+	uint32 col;
 	uint32 count = 0;
 
 	cstr_to_vga_str(vmsg, msg);
 
 	while(1)
 	{
-        	pos = strlen(msg);
-		vga_write_screen(18, 0, vmsg, strlen(msg));
+		row = 18;
+		col = 0;
+		vga_write_screen(&row, &col, vmsg, strlen(msg));
 
 		itoa(count, count_str);
-        	print_cstring_pos(count_str, 18, pos);
+		print_cstring_pos(count_str, row, col);
 		++count;
 	}
+
+	kfree(vmsg);
 }
 
 /*
@@ -323,28 +339,35 @@ void user_main_B(void)
  */
 void user_main_C(void)
 {
+
+	rtc ret;
 	uint32 data;
 	char tmp[] = "0";
 
 	print_set_location(19, 0);
+/*
 	while(1) {
-		data = 0;	/* Clean the data */
-
-		if (OK == keyboard_getchar(&data)) {
-			if (0 == (data & KBMAP_UNPRINT)) {
-				tmp[0] = (char)(data & 0xff);
-				print_cstring(tmp);
-			}
-
-		} else {
-			if (data == KBC_DOWN && (data & KBMAP_BREAK_CODE) == 0) {
-				vga_roll_down_screen();
-
-			} else if (data == KBC_UP && (data & KBMAP_BREAK_CODE) == 0) {
-				vga_roll_up_screen();
-
-			}
+		data = 0;
+		ret = keyboard_getchar(&data); 
+		if (ret != OK) {
+			continue;
 		}
+		print_uint32(data);
+		print_cstring(";");
+
+		if (0 == (data & (KBMAP_UNPRINT | KBMAP_BREAK_CODE))) {
+			tmp[0] = (char)(data & 0xff);
+			//print_cstring(tmp);
+		}
+
+		if (data == KBC_DOWN && (data & KBMAP_BREAK_CODE) == 0) {
+			vga_roll_down_screen();
+		} else if (data == KBC_UP && (data & KBMAP_BREAK_CODE) == 0) {
+			vga_roll_up_screen();
+		}
+
 	}
+*/
+	tty_process(&ttys[0]);
 }
 

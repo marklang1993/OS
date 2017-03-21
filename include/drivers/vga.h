@@ -41,7 +41,7 @@ void vga_get_screen_row(uint32 *ptr_row);
 void vga_roll_up_screen(void);
 void vga_roll_down_screen(void);
 
-uint32 vga_write_screen(uint32 row, uint32 col, const struct vga_char *ptr_buf, uint32 count);
+uint32 vga_write_screen(uint32 *ptr_row, uint32 *ptr_col, const struct vga_char *ptr_buf, uint32 count);
 uint32 vga_read_screen(uint32 row, uint32 col, struct vga_char *ptr_buf, uint32 count);
 
 uint32 cstr_to_vga_str(struct vga_char *vga_str, const char *cstr);

@@ -45,7 +45,7 @@ void *kmalloc(uint32 count)
 
 	/* Check count */
 	if (0 == count) {
-		return EINVARG;
+		return mem;
 	}
 
 	/* Search */

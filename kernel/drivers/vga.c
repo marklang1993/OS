@@ -117,24 +117,25 @@ void vga_roll_down_screen(void)
 
 /*
  # VGA memory opeartion parameters calculation
- @ row		: absolute row position
- @ col		: absolute col position
+ @ ptr_row	: pointer to absolute row position (in/out)
+ @ ptr_col	: pointer to absolute col position (in/out)
  @ count	: count of characters
  @ ptr_mem_pos	: pointer to mem_pos
  @ ptr_mem_len	: pointer to mem_len
  */
 static void vga_mem_calculate(
-	uint32 row,
-	uint32 col,
+	uint32 *ptr_row,
+	uint32 *ptr_col,
 	uint32 count,
 	uint32 *ptr_mem_pos,
 	uint32 *ptr_mem_len
 )
 {
-	uint32 mem_pos = VGA_GET_POS(row, col) * 2 + VGA_MEMORY_ADDR;	/* Upper bound */
-	uint32 mem_limit = mem_pos + count * 2;				/* Lower bound */
+	uint32 mem_pos = VGA_GET_POS(*ptr_row, *ptr_col) * 2 + VGA_MEMORY_ADDR;	/* Upper bound */
+	uint32 mem_limit = mem_pos + count * 2;					/* Lower bound */
 	uint32 mem_video_limit = VGA_MEMORY_ADDR + VGA_MEMORY_LIMIT;
 	uint32 mem_len = count * 2;
+	uint32 new_pos;
 
 	/* Memory boundary check */
 	if (mem_pos > mem_video_limit) {
@@ -149,26 +150,31 @@ static void vga_mem_calculate(
 	/* Return values */
 	*ptr_mem_pos = mem_pos;
 	*ptr_mem_len = mem_len;
+
+	/* New position */
+	new_pos = VGA_GET_POS(*ptr_row, *ptr_col) + (mem_len / 2);
+	*ptr_row = VGA_GET_ROW(new_pos);
+	*ptr_col = VGA_GET_COL(new_pos);
 }
 
 
 /*
  # VGA write video memory
- @ row		: absolute row position
- @ col		: absolute col position
+ @ ptr_row	: pointer to absolute row position (in/out)
+ @ ptr_col	: pounter to absolute col position (in/out)
  @ ptr_buf	: raw data to be written
  @ count	: count of characters
  * RETURN	: count of characters have been written
  */
 uint32 vga_write_screen(
-	uint32 row,
-	uint32 col,
+	uint32 *ptr_row,
+	uint32 *ptr_col,
 	const struct vga_char *ptr_buf,
 	uint32 count
 )
 {
 	uint32 mem_pos, mem_len;
-	vga_mem_calculate(row, col, count, &mem_pos, &mem_len);
+	vga_mem_calculate(ptr_row, ptr_col, count, &mem_pos, &mem_len);
 
 	memcpy((void *)mem_pos, (const void *)ptr_buf, mem_len);
 	return (mem_len / 2);
@@ -191,7 +197,7 @@ uint32 vga_read_screen(
 )
 {
 	uint32 mem_pos, mem_len;
-	vga_mem_calculate(row, col, count, &mem_pos, &mem_len);
+	vga_mem_calculate(&row, &col, count, &mem_pos, &mem_len);
 
 	memcpy((void *)ptr_buf, (const void *)mem_pos, mem_len);
 	return (mem_len / 2);
