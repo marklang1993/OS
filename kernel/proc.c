@@ -3,12 +3,11 @@
 #include "proc.h"
 
 struct process *current_user_process;
-static uint32 scheduler_count = 0;
 
 /*
- # Process Scheduler Function - Main Body
- */ 
-static void scheduler_main()
+ # Clock Interrupt Handler
+ */
+void process_scheduler(void)
 {
 	uint32 current_pid, next_pid;
 	uint32 offset_idx;
@@ -42,26 +41,3 @@ static void scheduler_main()
 	}
 }
 
-
-/*
- # Clock Interrupt Handler
- */
-void process_scheduler(void)
-{
-	char msg[] = "Scheduler is Running! Times: ";
-	char count_str[] = "0000000000";
-	uint32 pos = 0;
-
-	// Print Message
-	pos = strlen(msg);
-	print_cstring_pos(msg, 16, 0);
-
-	itoa(scheduler_count, count_str);
-//	itoa((uint32)current_user_process, count_str);
-	print_cstring_pos(count_str, 16, pos);
-
-	++scheduler_count;
-
-	// Go to real scheduler
-	scheduler_main();
-}

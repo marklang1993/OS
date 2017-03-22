@@ -6,6 +6,7 @@
 
 /* TTY Macro Functions */
 #define TTY_END_ROW(start, count) 	(start + count - 1)
+#define TTY_SET_CUR_ROW(row)		ptr_tty->cursor_row = (row) % ptr_tty->row_count
 
 /* TTY Constants */
 #define TTY_ROW_COUNT			50

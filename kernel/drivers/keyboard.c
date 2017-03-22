@@ -178,7 +178,7 @@ static BOOL is_e1 = FALSE;		/* Keycode E1 flag */
  */
 void keyboard_init(void)
 {
-	cbuf_init(&keyboard_buffer, KB_BUF_CAPA);
+	cbuf_init(&keyboard_buffer, KB_BUF_CAPA, NULL, 0);
 }
 
 

@@ -18,7 +18,7 @@ BOOT_IMG_FLAGS = bs=512 count=1 conv=notrunc
 MACHINE = bochs
 LINKER = ld
 GCC = gcc
-GCC_FLAGS = -m32 -c -fno-builtin -fno-stack-protector -Werror -I include/
+GCC_FLAGS = -m32 -c -fno-zero-initialized-in-bss -fno-builtin -fno-stack-protector -Werror -I include/
 # NOTE: 0x50000(Defined by KernelBaseOffset) + 0x400 (ELF header and other headers)
 # LINKER_FLAGS = -s -m elf_i386 -Ttext 0x50400
 LINKER_FLAGS = -m elf_i386 -Ttext 0x50400

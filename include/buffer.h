@@ -15,7 +15,7 @@ struct cbuf
         uint32 *data;
 };
 
-rtc cbuf_init(struct cbuf *ptr_cbuf, uint32 count);
+rtc cbuf_init(struct cbuf *ptr_cbuf, uint32 capacity, uint32 *ptr_data, uint32 size);
 rtc cbuf_uninit(struct cbuf *ptr_cbuf);
 rtc cbuf_read(struct cbuf *ptr_cbuf, uint32 *ptr_val);
 rtc cbuf_write(struct cbuf *ptr_cbuf, uint32 val);

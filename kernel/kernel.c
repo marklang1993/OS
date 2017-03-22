@@ -296,11 +296,13 @@ void user_main_A(void)
 
 	while(1)
 	{
+/*
         	pos = strlen(msg);
         	print_cstring_pos(msg, 17, 0);
 
        		itoa(count, count_str);
         	print_cstring_pos(count_str, 17, pos);
+*/
 		++count;
 	}
 }
@@ -322,12 +324,14 @@ void user_main_B(void)
 
 	while(1)
 	{
+/*
 		row = 18;
 		col = 0;
 		vga_write_screen(&row, &col, vmsg, strlen(msg));
 
 		itoa(count, count_str);
 		print_cstring_pos(count_str, row, col);
+*/
 		++count;
 	}
 

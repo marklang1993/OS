@@ -5,23 +5,50 @@
 /*
  # Initialize a Circular Buffer
  @ ptr_cbuf	: pointer to a circular buffer
- @ count	: count of elements in buffer
+ @ capacity	: count of elements in buffer
+ @ ptr_data	: pointer to data which are used to initialize buffer
+ @ size		: size of initial data
  */
-rtc cbuf_init(struct cbuf *ptr_cbuf, uint32 count)
+rtc cbuf_init(
+	struct cbuf *ptr_cbuf,
+	uint32 capacity,
+	uint32 *ptr_data,
+	uint32 size
+)
 {
-	/* Check pointer of cbuf */
-	if (NULL == ptr_cbuf) {
+	int i;
+
+	/* Check pointer of cbuf & capacity */
+	if (NULL == ptr_cbuf || 0 == capacity) {
 		return EINVARG;
 	}
 
-	ptr_cbuf->capacity = count;
+	/* Initialze the parameters of the buffer */
+	ptr_cbuf->capacity = capacity;
 	ptr_cbuf->count = 0;
 	ptr_cbuf->head = 0;
 	ptr_cbuf->tail = 0;
-	ptr_cbuf->data = (uint32 *)kmalloc(count * sizeof(uint32));	/* Convert to byte count */
+	ptr_cbuf->data = (uint32 *)kmalloc(capacity * sizeof(uint32));	/* Convert to byte count */
 
+	/* Check memory allocation result */
 	if (NULL == ptr_cbuf->data) {
 		return EOUTMEM;
+	}
+
+	/* Write initial data */
+	if (ptr_data != NULL && size != 0) {
+
+		/* Check : initial data size <= capacity of buffer */
+		if (capacity < size) {
+			/* If initial data is too long, then truncate the excess part */
+			size = capacity;
+		}
+
+		for (i = 0; i < size; ++i) {
+			ptr_cbuf->count += 1;
+			ptr_cbuf->data[ptr_cbuf->head] = ptr_data[i];
+			ptr_cbuf->head = (ptr_cbuf->head + 1) % ptr_cbuf->capacity;
+		}
 	}
 
 	return OK;

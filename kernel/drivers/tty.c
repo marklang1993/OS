@@ -3,6 +3,8 @@
 #include "drivers/tty.h"
 #include "drivers/vga.h"
 
+static uint32 tty_prompt_str[] = {'>', ' '};
+
 /*
  # Initialize TTY
  */
@@ -23,11 +25,15 @@ void tty_init(
 	ptr_tty->cursor_row = 0;
 	ptr_tty->cursor_col = 0;
 
-	cbuf_init(&ptr_tty->output_buf, TTY_VGA_BUF_SIZE);
+	cbuf_init(
+		&ptr_tty->output_buf,
+		TTY_VGA_BUF_SIZE,
+		tty_prompt_str,
+		sizeof(tty_prompt_str) / sizeof(uint32)
+	);
 
 	ptr_tty->is_active = is_active;
 }
-
 
 
 /*
@@ -71,19 +77,39 @@ void tty_process(struct tty *ptr_tty)
 				vga_set_cursor_location(cursor_row, ptr_tty->cursor_col);
 				vga_write_screen(&cursor_row, &ptr_tty->cursor_col, vga_data, 1);
 				/* Check reset cursor position */
-				if (TTY_END_ROW(ptr_tty->start_row, ptr_tty->row_count) >= cursor_row) {
-					ptr_tty->cursor_row = cursor_row - ptr_tty->start_row;
-				} else {
-					ptr_tty->cursor_row = 0;
-				}
+				TTY_SET_CUR_ROW(cursor_row - ptr_tty->start_row);
 
 			} else {
 				/* Unprintable characters - Control characters */
-				if (out_data == KBC_DOWN) {
-					vga_roll_down_screen();
+				switch (out_data) {
 
-				} else if (out_data == KBC_UP) {
+				case KBC_DOWN:
+					/* Down */
+					vga_roll_down_screen();
+					break;
+
+				case KBC_UP:
+					/* Up */
 					vga_roll_up_screen();
+					break;
+
+				case KBC_ENTER:
+				case KBC_PAD_ENTER:
+					/* Enter */
+					TTY_SET_CUR_ROW(ptr_tty->cursor_row + 1);
+					ptr_tty->cursor_col = 0;
+
+					cbuf_write(&ptr_tty->output_buf, tty_prompt_str[0]);
+					cbuf_write(&ptr_tty->output_buf, tty_prompt_str[1]);
+					break;
+
+				case KBC_BACKSPACE:
+					/* Delete */
+					break;
+
+				case KBC_TAB:
+					/* Delete */
+					break;
 				}
 			}
 

@@ -118,9 +118,6 @@ void print_cstring(const char *ptr_string)
 	length = strlen(ptr_string);
 	print_string(ptr_string, length, row_pos, col_pos);
 	
-	/* Set cursor */
-	vga_set_cursor_location(row_pos, col_pos);
-
 	/* Calculate new cursor position */
 	col_pos += length;
 	if(col_pos >= COUNT_CRT_MAX_COL)
