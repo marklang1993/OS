@@ -6,19 +6,22 @@
 
 #include "type.h"
 
-// memory.asm
+#define MAX(a, b)		(a < b ? b : a)
+#define MIN(a, b)		(a > b ? a : b)
+
+/* memory.asm */
 void memcpy(void *dst, const void *src, uint32 size);
 void memset(void *ptr, uint32 val, uint32 size);
 
-// print_string.asm
+/* print_string.asm */
 void print_string(const char *ptr_string, uint32 length, uint32 row, uint32 col);
 
-// print.c
+/* print.c */
 void itoa(uint32 value, char *str);
 uint32 strlen(const char *str);
 void print_set_location(uint32 row, uint32 col);
-void print_cstring_pos(const char *ptr_string, uint32 row, uint32 col); // Used for c-style char array
-void print_cstring(const char *ptr_string);				// Used for c-style char array
+void print_cstring_pos(const char *ptr_string, uint32 row, uint32 col); /* Used for c-style char array */
+void print_cstring(const char *ptr_string);				/* Used for c-style char array */
 void print_uint32_pos(uint32 value, uint32 row, uint32 col);
 void print_uint32(uint32 value);
 

@@ -81,6 +81,7 @@
 void keyboard_interrupt_handler(void);
 
 void keyboard_init(void);
+void keyboard_uninit(void);
 rtc keyboard_getchar(uint32 *ptr_data);
 
 #endif

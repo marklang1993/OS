@@ -23,7 +23,7 @@ struct kheap_node
 void init_kheap(void);
 void *kmalloc(uint32 count);
 rtc kfree(void *kheap_mem);
-void krealloc(void *kheap_mem, uint32 count);
+void *krealloc(void *kheap_mem, uint32 count);
 
 void kchk_mem(void *kheap_mem, uint32 count);
 

@@ -7,6 +7,8 @@
 /* TTY Macro Functions */
 #define TTY_END_ROW(start, count) 	(start + count - 1)
 #define TTY_SET_CUR_ROW(row)		ptr_tty->cursor_row = (row) % ptr_tty->row_count
+#define TTY_SET_CUR_COL(col)		ptr_tty->cursor_col = (col) % COUNT_CRT_MAX_COL
+
 
 /* TTY Constants */
 #define TTY_ROW_COUNT			50
@@ -22,6 +24,7 @@ struct tty
 	uint32 cursor_row;	/* Cursor position */
 	uint32 cursor_col;
 	struct cbuf output_buf; /* Output buffer */
+	struct strbuf input_buf;/* Input buffer - only record printable chars from keyboard */
 
 	BOOL is_active;		/* Flags : indicate is this tty under operation*/
 };
@@ -29,6 +32,7 @@ struct tty
 
 /* TTY functions */
 void tty_init(struct tty *ptr_tty, uint32 start_row, BOOL is_active);
+void tty_uninit(struct tty *ptr_tty);
 void tty_process(struct tty *ptr_tty);
 
 #endif

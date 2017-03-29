@@ -1,5 +1,5 @@
 #include "kheap.h"
-#include "memory.h"
+#include "lib.h"
 
 /* Kernel Heap Memory Area */
 #define ADDR_KHEAP_BASE			0x200000	/* KHeap start from 0x200000 */
@@ -111,15 +111,23 @@ void *kmalloc(uint32 count)
 }
 
 
+
 /*
- # Deallocated kernel heap memory
- @ kheap_mem : allocated memory pointer
- * RETURN    : for debug purpose, 0 on success
+ # Release & Re-allocate kheap memory
+ @ kheap_mem     : allocated memory pointer
+ @ new_kheap_mem : pointer to the pointer of new memory area
+ @ count         : size of new allocated memory area
+ * RETURN        : for debug purpose, 0 on success
  */
-rtc kfree(void *kheap_mem)
+static rtc kheap_release(
+	void *kheap_mem,
+	void **new_kheap_mem,
+	uint32 count
+)
 {
 	struct kheap_node *current;
 	struct kheap_node *last, *next;
+	uint32 copy_byte_count;
 	void *mem;
 
 	/* Check base node */
@@ -147,6 +155,22 @@ rtc kfree(void *kheap_mem)
 				return EHEAPMEM;
 
 			} else {
+				/* Check: is re-allocation needed */
+				if (new_kheap_mem != NULL && count != 0) {
+					/* Allocate new memory area */
+					*new_kheap_mem = kmalloc(count);
+					if (NULL == *new_kheap_mem) {
+						/* Re-allocation failed */
+						return EOUTMEM;
+					}
+					/* Copy the data from old memory area */
+					copy_byte_count = SIZE_KHEAP_BLOCK * current->block_count;
+					if (count < copy_byte_count) {
+						/* If the size of new memory area is smaller, then trim */
+						copy_byte_count = count;
+					}
+					memcpy(*new_kheap_mem, kheap_mem, copy_byte_count);
+				}
 				/* Free that node */
 				current->is_free = TRUE;
 				/* Check merge */
@@ -184,8 +208,36 @@ rtc kfree(void *kheap_mem)
 }
 
 
-void krealloc(void *kheap_mem, uint32 count)
+/*
+ # Deallocated kernel heap memory
+ @ kheap_mem : allocated memory pointer
+ * RETURN    : for debug purpose, 0 on success
+ */
+rtc kfree(void *kheap_mem)
 {
+	return kheap_release(kheap_mem, NULL, 0);
+}
+
+
+/*
+ # Re-allocate kernel heap memory
+ @ kheap_mem : allocated memory pointer
+ @ count     : size of new memory area in bytes
+ * RETURN    : pointer to new memory area
+ */
+void *krealloc(void *kheap_mem, uint32 count)
+{
+	void *new_kheap_mem;
+	rtc ret;
+
+	ret = kheap_release(kheap_mem, &new_kheap_mem, count);
+
+	if (ret != OK) {
+		/* Re-allocation failed */
+		return NULL;
+	}
+
+	return new_kheap_mem;
 }
 
 

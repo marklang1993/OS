@@ -183,6 +183,15 @@ void keyboard_init(void)
 
 
 /*
+ # Uninitialize Keyboard Driver
+ */
+void keyboard_uninit(void)
+{
+	cbuf_uninit(&keyboard_buffer);
+}
+
+
+/*
  # Keyboard Interrupt Handler
  */
 void keyboard_interrupt_handler(void)

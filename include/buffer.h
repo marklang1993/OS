@@ -2,10 +2,8 @@
 #define _BUFFER_H_
 
 #include "errors.h"
-#include "lib.h"
 
-// Circular Buffer
-
+/* Circular Buffer - Thread safe */
 struct cbuf
 {
 	uint32 capacity;	/* Maximum count of elements in buffer */
@@ -15,9 +13,25 @@ struct cbuf
         uint32 *data;
 };
 
-rtc cbuf_init(struct cbuf *ptr_cbuf, uint32 capacity, uint32 *ptr_data, uint32 size);
-rtc cbuf_uninit(struct cbuf *ptr_cbuf);
+rtc cbuf_init(struct cbuf *ptr_cbuf, uint32 capacity, const uint32 *ptr_data, uint32 size);
+void cbuf_uninit(struct cbuf *ptr_cbuf);
 rtc cbuf_read(struct cbuf *ptr_cbuf, uint32 *ptr_val);
 rtc cbuf_write(struct cbuf *ptr_cbuf, uint32 val);
+
+
+/* String Buffer - Non-thread safe */
+struct strbuf
+{
+	uint32 capacity;
+	uint32 length;
+	char *data;
+};
+
+rtc strbuf_init(struct strbuf *ptr_strbuf, uint32 capacity, const char *cstr);
+void strbuf_uninit(struct strbuf *ptr_strbuf);
+rtc strbuf_push(struct strbuf *ptr_strbuf, const char val);
+rtc strbuf_pop(struct strbuf *ptr_strbuf, char *ptr_val);
+rtc strbuf_str(struct strbuf *ptr_strbuf, char **ptr_str, uint32 *ptr_length);
+rtc strbuf_empty(struct strbuf *ptr_strbuf);
 
 #endif
