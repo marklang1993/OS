@@ -59,7 +59,7 @@ Kernel_Start:
 	mov esp, KERNEL_ESP
 
 	sti			; Enable interrupt
-	int 80h			; 0x80 interrupt test
+	int 90h			; 0x90 interrupt test
 	
 	call kernel_main 	; Jmp to kernel_main
 

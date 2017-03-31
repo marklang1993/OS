@@ -1,6 +1,7 @@
 #include "kheap.h"
 #include "lib.h"
 #include "proc.h"
+#include "syscall.h"
 #include "drivers/i8253.h"
 #include "drivers/keyboard.h"
 #include "drivers/tty.h"
@@ -152,8 +153,8 @@ static void kernel_init_idt(void)
 {
 	uint32 i;
 
-	// # Interrupt Descriptor Table
-	// Intel defined interrupts 0 ~ 19
+	/* # Interrupt Descriptor Table */
+	/* Intel defined interrupts 0 ~ 19 */
 	kernel_init_idt_entry(0, &int_entry_division_fault, DPL_0);
 	kernel_init_idt_entry(1, &int_entry_debug_exception, DPL_0);
 	kernel_init_idt_entry(2, &int_entry_non_maskable_interrupt, DPL_0);
@@ -175,16 +176,18 @@ static void kernel_init_idt(void)
 	kernel_init_idt_entry(18, &int_entry_machine_check_abort, DPL_0);
 	kernel_init_idt_entry(19, &int_entry_simd_float_fault, DPL_0);
 
-	// Other interrupts 20 ~ 255
+	/* Other interrupts 20 ~ 255 */
 	for (i = 20; i < INTERRUPT_COUNT; ++i)
 	{
 		kernel_init_idt_entry(i, &int_handler_default, DPL_0);
 	}
-	// 8259A interrupts
+	/* 8259A interrupts */
 	kernel_init_idt_entry(INTERRUPT_8259A_OFFSET + INDEX_8259A_CLOCK, &int_handler_clock, DPL_0);
 	kernel_init_idt_entry(INTERRUPT_8259A_OFFSET + INDEX_8259A_KEYBOARD, &int_handler_keyboard, DPL_0);
+	/* System call interrupt */
+	kernel_init_idt_entry(INT_SYS_CALL, &int_handler_syscall, DPL_3);
 
-	// # Pointer to Interrupt Descriptor Table
+	/* # Pointer to Interrupt Descriptor Table */
 	idt_ptr.limit = INTERRUPT_COUNT * GATE_DESCRIPTOR_SIZE - 1;
 	idt_ptr.ptr_base = (void*)idt;
 }
@@ -288,6 +291,8 @@ void kernel_main(void)
  */
 void user_main_A(void)
 {
+	int32 ret;
+/*
 	char msg[] = "User Process A is Running: ";
 	char count_str[] = "0000000000";
 	uint32 pos = 0;
@@ -296,15 +301,17 @@ void user_main_A(void)
 
 	while(1)
 	{
-/*
+
         	pos = strlen(msg);
         	print_cstring_pos(msg, 17, 0);
 
        		itoa(count, count_str);
         	print_cstring_pos(count_str, 17, pos);
-*/
+
 		++count;
 	}
+*/
+	sys_call(0, &ret, (uint32)100, (uint32)101);
 }
 
 
@@ -343,35 +350,8 @@ void user_main_B(void)
  */
 void user_main_C(void)
 {
-
-	rtc ret;
-	uint32 data;
-	char tmp[] = "0";
-
 	print_set_location(19, 0);
-/*
-	while(1) {
-		data = 0;
-		ret = keyboard_getchar(&data); 
-		if (ret != OK) {
-			continue;
-		}
-		print_uint32(data);
-		print_cstring(";");
 
-		if (0 == (data & (KBMAP_UNPRINT | KBMAP_BREAK_CODE))) {
-			tmp[0] = (char)(data & 0xff);
-			//print_cstring(tmp);
-		}
-
-		if (data == KBC_DOWN && (data & KBMAP_BREAK_CODE) == 0) {
-			vga_roll_down_screen();
-		} else if (data == KBC_UP && (data & KBMAP_BREAK_CODE) == 0) {
-			vga_roll_up_screen();
-		}
-
-	}
-*/
 	tty_process(&ttys[0]);
 }
 

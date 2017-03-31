@@ -30,6 +30,7 @@ global int_entry_simd_float_fault
 global int_handler_default 
 global int_handler_clock
 global int_handler_keyboard
+global int_handler_syscall
 
 ; kernel.c
 extern tss
@@ -48,6 +49,10 @@ extern current_user_process
 
 ; drivers/i8259a.c
 extern i8259a_interrupt_dispatch
+
+; syscall.c
+extern sys_call_dispatch
+
 
 [section .text]
 
@@ -209,4 +214,9 @@ int_handler_clock:
 ; Handle keyboard interrupt
 int_handler_keyboard:
 	I8259A_INT_HANDLER INDEX_8259A_KEYBOARD
+
+; # void int_handler_syscall(void)
+; Handle system call interrupt
+int_handler_syscall:
+	SYSCALL_INT_HANDLER
 

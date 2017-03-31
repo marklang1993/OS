@@ -1,7 +1,7 @@
 # Makefile for OS #
 
 # Build Target
-OBJECTS = kernel_asm.o kernel_c.o proc.o interrupt_asm.o interrupt_c.o
+OBJECTS = kernel_asm.o kernel_c.o proc.o interrupt_asm.o interrupt_c.o syscall_asm.o syscall_c.o
 LIB_OBJECTS = kheap.o memory.o buffer.o print_string.o print.o io_port.o
 DRV_OBJECTS = i8259a.o i8253.o keyboard.o vga.o tty.o
 TARGET = boot.bin loader.bin kernel.bin
@@ -55,6 +55,12 @@ interrupt_asm.o : kernel/interrupt.asm
 		$(ASM) $(ASM_ELF_FLAGS) -o $@ $<
 
 interrupt_c.o : kernel/interrupt.c
+		$(GCC) $(GCC_FLAGS) -o $@ $<
+
+syscall_asm.o : kernel/syscall.asm
+		$(ASM) $(ASM_ELF_FLAGS) -o $@ $<
+
+syscall_c.o :   kernel/syscall.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
 kheap.o :	lib/kheap.c
