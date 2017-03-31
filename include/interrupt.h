@@ -1,4 +1,4 @@
-/*
+/* 
  * Interrupt related functions declaration
  * NOTE: Implemetation are in asm file
  */
@@ -9,7 +9,7 @@
 #include "type.h"
 #include "drivers/i8259a.h"
 
-/* 
+/*
  * Interrupts / Exceptions Vector Table
  * 0 ~ 19		CPU exceptions
  * 20 ~ 31		Reserved by Intel

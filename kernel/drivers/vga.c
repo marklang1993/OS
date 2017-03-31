@@ -38,6 +38,31 @@ void vga_set_cursor_location(uint32 row, uint32 col)
 	sti();
 }
 
+/*
+ # VGA Get Cursor Location
+ @ ptr_row: pointer to cursor row location
+ @ ptr_col: pointer to cursor column location
+ */
+void vga_get_cursor_location(uint32 *ptr_row, uint32 *ptr_col)
+{
+	/* Convert row & col to actual registers' values */
+	uint32 pos;
+	uint8 pos_high, pos_low;
+
+	/* Set registers */
+	cli();
+	io_out_byte(PORT_VGA_CRT_CTRL_ADDR, IDX_VGA_CRT_CTRL_ADDR_CUR_LOC_L);
+	io_in_byte(PORT_VGA_CRT_CTRL_DATA, &pos_low);
+	io_out_byte(PORT_VGA_CRT_CTRL_ADDR, IDX_VGA_CRT_CTRL_ADDR_CUR_LOC_H);
+	io_in_byte(PORT_VGA_CRT_CTRL_DATA, &pos_high);
+	sti();
+
+	/* Calculate and return */
+	pos = pos_low | (((uint32)pos_high) << 8);
+	*ptr_row = VGA_GET_ROW(pos);
+	*ptr_col = VGA_GET_COL(pos);
+}
+
 
 /*
  # VGA set current screen to indicated row

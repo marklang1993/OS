@@ -47,7 +47,7 @@ i8259a_goto_dispatch_ %+ %1:
         ; Run interrupt dispatch function
         push dword %1			; Pass 8259A interrupt index
         call i8259a_interrupt_dispatch  ; Run 8259A interrupt dispatch function
-        add esp, 4			; Clean stack
+        add esp, 4                      ; Clean stack
 
 	; Turn off interrupt
 	cli

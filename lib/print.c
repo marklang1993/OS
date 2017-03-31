@@ -1,3 +1,4 @@
+#include "kheap.h"
 #include "lib.h"
 #include "drivers/vga.h"
 
@@ -39,20 +40,44 @@ static void str_reverse(char *str, uint32 length)
 
 
 /*
+ # Get absolute value of a 32-bit signed integer
+ @ n    : input number
+ RETURN : absolute value of given signed integer
+ */
+uint32 abs(int32 n)
+{
+	uint32 abs_val = (uint32)n;
+
+	if (n & 0x80000000) {
+		abs_val = ~abs_val;
+		++abs_val;
+	}
+
+	return abs_val;
+}
+
+/*
  # Convert 32-bit unsigned interger to string
- @ value: 32-bit unsigned integer
- @ str: pointer to a c-style char array
+ @ value : 32-bit unsigned integer
+ @ str   : pointer to a c-style char array
+ @ base  : base of value
 */
-void itoa(uint32 value, char *str)
+void itoa(uint32 value, char *str, int base)
 {
 	uint32 remainder;
 	uint32 length = 0;
 	
 	do
 	{
-		remainder = value % 10;
-		value = value / 10;
-		str[length] = (char)(remainder + '0');		
+		remainder = value % base;
+		value = value / base;
+		if (remainder < 10) {
+			str[length] = (char)(remainder + '0');
+
+		} else {
+			remainder -= 10;
+			str[length] = (char)(remainder + 'a');
+		}
 		++length;
 	} while(value != 0);
 
@@ -100,9 +125,13 @@ void print_set_location(uint32 row, uint32 col)
 void print_cstring_pos(const char *ptr_string, uint32 row, uint32 col)
 {
 	uint32 length = 0;
+	struct vga_char *vga_str;
 
 	length = strlen(ptr_string);
-	print_string(ptr_string, length, row, col);
+	vga_str = kmalloc(sizeof(struct vga_char) * (length + 1));
+	cstr_to_vga_str(vga_str, ptr_string);
+	vga_write_screen(&row, &col, vga_str, length);
+	kfree(vga_str);
 }
 
 /*
@@ -112,27 +141,13 @@ void print_cstring_pos(const char *ptr_string, uint32 row, uint32 col)
 void print_cstring(const char *ptr_string)
 {
 	uint32 length = 0;
-	uint32 col_pos = print_col;
-	uint32 row_pos = print_row;
+	struct vga_char *vga_str;
 
 	length = strlen(ptr_string);
-	print_string(ptr_string, length, row_pos, col_pos);
-	
-	/* Calculate new cursor position */
-	col_pos += length;
-	if(col_pos >= COUNT_CRT_MAX_COL)
-	{
-		++row_pos;
-		col_pos = col_pos % COUNT_CRT_MAX_COL;
-	}
-	if(row_pos >= COUNT_CRT_MAX_ROW)
-	{
-		/* Wrap back to line 0 */
-		row_pos = 0;
-	}
-
-	print_col = col_pos;
-	print_row = row_pos;
+	vga_str = kmalloc(sizeof(struct vga_char) * (length + 1));
+	cstr_to_vga_str(vga_str, ptr_string);
+	vga_write_screen(&print_row, &print_col, vga_str, length);
+	kfree(vga_str);
 }
 
 /*
@@ -147,7 +162,7 @@ void print_uint32_pos(uint32 value, uint32 row, uint32 col)
 	// 32-bit integer contains at most 8 chars, 9th char for '\0'.
 	char value_str[9];
 
-	itoa(value, value_str);
+	itoa(value, value_str, 10);
 	print_cstring_pos(value_str, row, col);
 }
 
@@ -160,7 +175,7 @@ void print_uint32(uint32 value)
 	// 32-bit integer contains at most 8 chars, 9th char for '\0'.
 	char value_str[9];
 
-	itoa(value, value_str);
+	itoa(value, value_str, 10);
 	print_cstring(value_str);
 }
 

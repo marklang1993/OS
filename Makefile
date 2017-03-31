@@ -2,7 +2,7 @@
 
 # Build Target
 OBJECTS = kernel_asm.o kernel_c.o proc.o interrupt_asm.o interrupt_c.o syscall_asm.o syscall_c.o
-LIB_OBJECTS = kheap.o memory.o buffer.o print_string.o print.o io_port.o
+LIB_OBJECTS = kheap.o memory.o buffer.o print.o printk.o io_port.o
 DRV_OBJECTS = i8259a.o i8253.o keyboard.o vga.o tty.o
 TARGET = boot.bin loader.bin kernel.bin
 TARGET_IMG = boot.img
@@ -72,10 +72,10 @@ memory.o : 	lib/memory.asm
 buffer.o :	lib/buffer.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
-print_string.o : lib/print_string.asm
-		$(ASM) $(ASM_ELF_FLAGS) -o $@ $<
-
 print.o : 	lib/print.c
+		$(GCC) $(GCC_FLAGS) -o $@ $<
+
+printk.o : 	lib/printk.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
 io_port.o : 	lib/io_port.asm

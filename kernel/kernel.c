@@ -292,8 +292,9 @@ void kernel_main(void)
 void user_main_A(void)
 {
 	int32 ret;
-/*
+
 	char msg[] = "User Process A is Running: ";
+/*
 	char count_str[] = "0000000000";
 	uint32 pos = 0;
 	uint32 count = 0;
@@ -305,12 +306,15 @@ void user_main_A(void)
         	pos = strlen(msg);
         	print_cstring_pos(msg, 17, 0);
 
-       		itoa(count, count_str);
+		itoa(count, count_str, 10);
         	print_cstring_pos(count_str, 17, pos);
 
 		++count;
 	}
 */
+
+	printk("test message: %s %d %u %x", msg, -100, 100, 0xabcd);
+
 	sys_call(0, &ret, (uint32)100, (uint32)101);
 }
 
@@ -336,7 +340,7 @@ void user_main_B(void)
 		col = 0;
 		vga_write_screen(&row, &col, vmsg, strlen(msg));
 
-		itoa(count, count_str);
+		itoa(count, count_str, 10);
 		print_cstring_pos(count_str, row, col);
 */
 		++count;

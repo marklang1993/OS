@@ -36,6 +36,7 @@ struct vga_char {
 
 /* VGA Functions */
 void vga_set_cursor_location(uint32 row, uint32 col);
+void vga_get_cursor_location(uint32 *ptr_row, uint32 *ptr_col);
 void vga_set_screen_row(uint32 row);
 void vga_get_screen_row(uint32 *ptr_row);
 void vga_roll_up_screen(void);
