@@ -24,6 +24,8 @@ void print_uint32_pos(uint32 value, uint32 row, uint32 col);
 void print_uint32(uint32 value);
 
 /* printk.c */
+void printb(uint32 *ptr_row, uint32 *ptr_col, const char **print_base);
+void printf(const char *format, ...);
 void printk(const char *format, ...);
 
 #endif

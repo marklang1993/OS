@@ -1,3 +1,4 @@
+#include "dbg.h"
 #include "kheap.h"
 #include "lib.h"
 #include "proc.h"
@@ -283,6 +284,8 @@ void kernel_main(void)
 	kernel_init_user_process(2, &user_main_A);
 	kernel_init_user_process(1, &user_main_B);
 	kernel_init_user_process(0, &user_main_C);
+
+	panic("test");
 }
 
 
@@ -291,31 +294,7 @@ void kernel_main(void)
  */
 void user_main_A(void)
 {
-	rtc ret;
 
-	char msg[] = "User Process A is Running: ";
-/*
-	char count_str[] = "0000000000";
-	uint32 pos = 0;
-	uint32 count = 0;
-
-
-	while(1)
-	{
-
-        	pos = strlen(msg);
-        	print_cstring_pos(msg, 17, 0);
-
-		itoa(count, count_str, 10);
-        	print_cstring_pos(count_str, 17, pos);
-
-		++count;
-	}
-*/
-
-	//printk("test message: %s %d %u %x", msg, -100, 100, 0xabcd);
-	sys_call(0, &ret, (uint32)100, (uint32)200);
-	printk(" ret addr: 0x%x ret: %d", &ret, ret);
 	while(1);
 }
 

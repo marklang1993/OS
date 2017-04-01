@@ -2,7 +2,7 @@
 
 # Build Target
 OBJECTS = kernel_asm.o kernel_c.o proc.o interrupt_asm.o interrupt_c.o syscall_asm.o syscall_c.o
-LIB_OBJECTS = kheap.o memory.o buffer.o print.o printk.o io_port.o
+LIB_OBJECTS = dbg.o kheap.o memory.o buffer.o print.o printk.o io_port.o
 DRV_OBJECTS = i8259a.o i8253.o keyboard.o vga.o tty.o
 TARGET = boot.bin loader.bin kernel.bin
 TARGET_IMG = boot.img
@@ -18,7 +18,7 @@ BOOT_IMG_FLAGS = bs=512 count=1 conv=notrunc
 MACHINE = bochs
 LINKER = ld
 GCC = gcc
-GCC_FLAGS = -m32 -c -fno-zero-initialized-in-bss -fno-builtin -fno-stack-protector -Werror -I include/
+GCC_FLAGS = -m32 -c -D _OS_DBG_ -fno-zero-initialized-in-bss -fno-builtin -fno-stack-protector -Werror -I include/
 # NOTE: 0x50000(Defined by KernelBaseOffset) + 0x400 (ELF header and other headers)
 # LINKER_FLAGS = -s -m elf_i386 -Ttext 0x50400
 LINKER_FLAGS = -m elf_i386 -Ttext 0x50400
@@ -61,6 +61,9 @@ syscall_asm.o : kernel/syscall.asm
 		$(ASM) $(ASM_ELF_FLAGS) -o $@ $<
 
 syscall_c.o :   kernel/syscall.c
+		$(GCC) $(GCC_FLAGS) -o $@ $<
+
+dbg.o:		lib/dbg.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
 kheap.o :	lib/kheap.c
