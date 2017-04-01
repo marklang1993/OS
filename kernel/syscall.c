@@ -12,13 +12,21 @@ sys_call_fp sys_call_table[] = {
  */
 void sys_call_dispatch(void *base_arg)
 {
-	uint32 num = *((uint32 *)base_arg);
-	int32 *ptr_ret = ((int32 *)base_arg) + 1;
+	uint32 function_num = *((uint32 *)base_arg);
+	rtc *ptr_ret = *(rtc **)(((uint32 *)base_arg) + 1);
 
-	while(1);
+	/* Call corresponding system call */
+	*ptr_ret = sys_call_table[function_num](
+			(void *)(((uint32 *)base_arg) + 2)
+			);
 }
 
-void sys_call_test(void)
+
+rtc sys_call_test(void *base_arg)
 {
-	;
+	uint32 *arg_ptr = base_arg;
+
+	printk("test message: %u %u", *arg_ptr, *(arg_ptr + 1));
+
+	return -10;
 }

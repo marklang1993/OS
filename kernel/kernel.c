@@ -291,7 +291,7 @@ void kernel_main(void)
  */
 void user_main_A(void)
 {
-	int32 ret;
+	rtc ret;
 
 	char msg[] = "User Process A is Running: ";
 /*
@@ -313,9 +313,10 @@ void user_main_A(void)
 	}
 */
 
-	printk("test message: %s %d %u %x", msg, -100, 100, 0xabcd);
-
-	sys_call(0, &ret, (uint32)100, (uint32)101);
+	//printk("test message: %s %d %u %x", msg, -100, 100, 0xabcd);
+	sys_call(0, &ret, (uint32)100, (uint32)200);
+	printk(" ret addr: 0x%x ret: %d", &ret, ret);
+	while(1);
 }
 
 

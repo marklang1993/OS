@@ -25,7 +25,7 @@ void printk(const char *format, ...)
 	uint32 str_index = 0;	/* index for %s */
 	uint32 str_len = 0;
 
-	vga_get_cursor_location(&row, &col);
+	/* vga_get_cursor_location(&row, &col); */
 	while(format[index] != (char)0) {
 
 		switch (format[index]) {
