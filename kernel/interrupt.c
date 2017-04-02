@@ -1,10 +1,11 @@
+#include "dbg.h"
 #include "interrupt.h"
 #include "lib.h"
 #include "type.h"
 
 /* Interrupt re-enter flag -- For all interrupt
- * 1: No interrupt occurs, need to switch stack once interrupter occurs
- * 0: Interrupt occurs, do not need to switch stack once interrupter occurs
+ * 0: No interrupt occurs, need to switch stack once interrupter occurs
+ * Others : Interrupt occurs, do not need to switch stack once interrupter occurs
  */
 uint32 int_global_reenter = 0;
 
@@ -34,18 +35,8 @@ static const char *interrupt_msg[] = {
 void interrupt_handler(uint32 vector_no, uint32 error_code, uint32 eip, uint32 cs, uint32 eflags)
 {
 	// Output message
-	print_set_location(0, 0);
-	print_cstring("PANIC: #");
-	print_uint32(vector_no);
-	print_cstring(" ");
-	print_cstring(interrupt_msg[vector_no]);
-
-	print_set_location(1, 0);
-	print_cstring("Error code: ");
-	print_uint32(error_code);
-	print_cstring("; EIP: ");
-	print_uint32(eip);
-	print_cstring("; CS: ");
-	print_uint32(cs);
+	panic("#%u %s\nError code: %d; EIP: 0x%x; CS: 0x%x; EFLAGS: 0x%x\n",
+		vector_no, interrupt_msg[vector_no], error_code, eip, cs, eflags);
 }
+
 

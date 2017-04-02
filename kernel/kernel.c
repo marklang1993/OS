@@ -1,4 +1,3 @@
-#include "dbg.h"
 #include "kheap.h"
 #include "lib.h"
 #include "proc.h"
@@ -228,6 +227,11 @@ static void kernel_init_user_process(uint32 pid, ptr_void_function p_func)
 	user_process[pid].pid = pid;
 	user_process[pid].priority = pid;
 	user_process[pid].cycles = 0;
+
+	user_process[pid].status = PROC_RUNNABLE;
+	user_process[pid].apt_sender = IPC_PROC_ALL;
+	user_process[pid].receiver = IPC_PROC_NO;
+	user_process[pid].next_sending_proc = NULL;
 }
 
 /*
@@ -281,11 +285,12 @@ void kernel_init(void)
 void kernel_main(void)
 {
 	/* Init. user process */
-	kernel_init_user_process(2, &user_main_A);
+	kernel_init_user_process(0, &user_main_A);
 	kernel_init_user_process(1, &user_main_B);
-	kernel_init_user_process(0, &user_main_C);
+	kernel_init_user_process(2, &user_main_C);
 
-	panic("test");
+	user_process[0].status = PROC_SLEEP;
+	user_process[1].status = PROC_SLEEP;
 }
 
 
@@ -294,8 +299,26 @@ void kernel_main(void)
  */
 void user_main_A(void)
 {
+	char msg[] = "User Process A is Running: ";
+	char count_str[] = "0000000000";
+	struct vga_char *vmsg = kmalloc(sizeof(struct vga_char) * sizeof(msg));
+	uint32 row;
+	uint32 col;
+	uint32 count = 0;
 
-	while(1);
+	cstr_to_vga_str(vmsg, msg);
+
+	while(1)
+	{
+		row = 17;
+		col = 0;
+		vga_write_screen(&row, &col, vmsg, strlen(msg));
+
+		itoa(count, count_str, 10);
+		print_cstring_pos(count_str, row, col);
+
+		++count;
+	}
 }
 
 
@@ -315,14 +338,13 @@ void user_main_B(void)
 
 	while(1)
 	{
-/*
 		row = 18;
 		col = 0;
 		vga_write_screen(&row, &col, vmsg, strlen(msg));
 
 		itoa(count, count_str, 10);
 		print_cstring_pos(count_str, row, col);
-*/
+
 		++count;
 	}
 

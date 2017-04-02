@@ -1,7 +1,7 @@
 # Makefile for OS #
 
 # Build Target
-OBJECTS = kernel_asm.o kernel_c.o proc.o interrupt_asm.o interrupt_c.o syscall_asm.o syscall_c.o
+OBJECTS = kernel_asm.o kernel_c.o proc.o interrupt_asm.o interrupt_c.o syscall_asm.o syscall_c.o ipc.o
 LIB_OBJECTS = dbg.o kheap.o memory.o buffer.o print.o printk.o io_port.o
 DRV_OBJECTS = i8259a.o i8253.o keyboard.o vga.o tty.o
 TARGET = boot.bin loader.bin kernel.bin
@@ -61,6 +61,9 @@ syscall_asm.o : kernel/syscall.asm
 		$(ASM) $(ASM_ELF_FLAGS) -o $@ $<
 
 syscall_c.o :   kernel/syscall.c
+		$(GCC) $(GCC_FLAGS) -o $@ $<
+
+ipc.o :   	kernel/ipc.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
 dbg.o:		lib/dbg.c
