@@ -1,9 +1,12 @@
 #include "lib.h"
+#include "proc.h"
 #include "syscall.h"
 
 /* SYS_CALL table defined here */
 sys_call_fp sys_call_table[] = {
-	sys_call_test
+	sys_call_test,
+	sys_call_send_msg,
+	sys_call_recv_msg
 };
 
 /*

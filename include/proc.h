@@ -59,10 +59,12 @@ struct process
 	struct proc_msg msg_buf;		/* Process message buffer - copy from user space OR kernel space */
 	uint32 apt_sender;			/* Acceptable sender - as receiver */
 	uint32 receiver;			/* Message receiver - as sender */
-	struct process *next_sending_proc;	/* Next process sending message */
+	struct process *proc_sending_to;	/* The process which the current process sends to */
+	struct process *proc_recving_from;	/* The process which the current process receives from */
 };
 
-/* Process Functions */
+/* Process related Functions */
 void process_scheduler(void);
+void schedule(void);
 
 #endif

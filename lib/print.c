@@ -124,14 +124,15 @@ void print_set_location(uint32 row, uint32 col)
 */
 void print_cstring_pos(const char *ptr_string, uint32 row, uint32 col)
 {
-	uint32 length = 0;
-	struct vga_char *vga_str;
+	uint32 pos = 0;
+	struct vga_char vga_str[1];
 
-	length = strlen(ptr_string);
-	vga_str = kmalloc(sizeof(struct vga_char) * (length + 1));
-	cstr_to_vga_str(vga_str, ptr_string);
-	vga_write_screen(&row, &col, vga_str, length);
-	kfree(vga_str);
+	while (ptr_string[pos] != 0) {
+		vga_str[0].data = ptr_string[pos];
+		vga_str[0].color.data = 0x0f;
+		vga_write_screen(&row, &col, vga_str, 1);
+		++pos;
+	}
 }
 
 /*
@@ -140,14 +141,15 @@ void print_cstring_pos(const char *ptr_string, uint32 row, uint32 col)
 */
 void print_cstring(const char *ptr_string)
 {
-	uint32 length = 0;
-	struct vga_char *vga_str;
+	uint32 pos = 0;
+	struct vga_char vga_str[1];
 
-	length = strlen(ptr_string);
-	vga_str = kmalloc(sizeof(struct vga_char) * (length + 1));
-	cstr_to_vga_str(vga_str, ptr_string);
-	vga_write_screen(&print_row, &print_col, vga_str, length);
-	kfree(vga_str);
+	while (ptr_string[pos] != 0) {
+		vga_str[0].data = ptr_string[pos];
+		vga_str[0].color.data = 0x0f;
+		vga_write_screen(&print_row, &print_col, vga_str, 1);
+		++pos;
+	}
 }
 
 /*

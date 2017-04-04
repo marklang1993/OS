@@ -8,6 +8,8 @@
 
 /* SYS_CALL defined here */
 #define SYS_CALL_TEST		0
+#define SYS_CALL_SEND_MSG	1
+#define SYS_CALL_RECV_MSG	2
 
 
 /* SYS_CALL function type in ring 0 */

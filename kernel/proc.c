@@ -3,35 +3,34 @@
 #include "lib.h"
 #include "proc.h"
 
+/* Current Running User Process
+ * NOTE :
+ * 1. If scheduler is activated not under the 1st interrupt,
+ * no user process will be scheduled.
+ * 2. If scheduler is running, then system call cannot occur.
+ * Since both scheduler and system call are executed in ring 0,
+ * they are mutually exclusive.
+ * 3. Even though clock interrupt barges before "INT INT_SYS_CALL",
+ * "INT INT_SYS_CALL" continues to execute only if
+ * "current_user_process" is the process that has been barged.
+ * #. Thus, we can use "current_user_process" to get current pid
+ * in system calls.
+ */
 struct process *current_user_process;
 
 /* interrupt.c */
 extern uint32 int_global_reenter;
 
 /*
- # Switch to next process
+ # Switch to next RUNNABLE process
  */
-static void switch_process(void)
+void schedule(void)
 {
 	uint32 base_pid, current_pid, next_pid;
 	uint32 offset_idx;
 
 	/* Get current pid as base_pid */
 	base_pid = current_user_process->pid;
-
-	/* If current process's cycles is used up,
-	 * refill the remained cycles of current process.
-	 */
-	if (0 == current_user_process->cycles) {
-		current_user_process->cycles = USER_PROCESS_COUNT - current_user_process->priority;
-	}
-
-	/* If current process's status is RUNNING,
-	 * switch to RUNNABLE.
-	 */
-	if (PROC_RUNNING == current_user_process->status) {
-		current_user_process->status = PROC_RUNNABLE;
-	}
 
 	/* Search for next RUNNABLE process */
 	current_pid = base_pid;
@@ -66,6 +65,7 @@ static void switch_process(void)
 	current_user_process->status = PROC_RUNNING;
 }
 
+
 /*
  # Clock Interrupt Handler
  */
@@ -83,7 +83,23 @@ void process_scheduler(void)
 	 */
 	if (0 == current_user_process->cycles ||
 	    current_user_process->status != PROC_RUNNING) {
-		switch_process();
+
+		/* If current process's cycles is used up,
+		 * refill the remained cycles of current process.
+		 */
+		if (0 == current_user_process->cycles) {
+			current_user_process->cycles = USER_PROCESS_COUNT -
+						current_user_process->priority;
+		}
+		/* If current process's status is RUNNING,
+		 * switch to RUNNABLE.
+		 */
+		if (PROC_RUNNING == current_user_process->status) {
+			current_user_process->status = PROC_RUNNABLE;
+		}
+
+		/* Switch to next RUNNABLE process */
+		schedule();
 
 	} else {
 		/* Remained on current process */

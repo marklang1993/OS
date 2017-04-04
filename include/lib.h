@@ -6,6 +6,12 @@
 
 #include "type.h"
 
+/* After spliting kernel and user space memory,
+ * this should be set to non-zero value.
+ * MUST user copy_to_kernel() & copy_to_user().
+ */
+#define ENABLE_SPLIT_KUSPACE	0
+
 #define MAX(a, b)		(a < b ? b : a)
 #define MIN(a, b)		(a > b ? a : b)
 

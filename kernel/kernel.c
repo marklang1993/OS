@@ -1,3 +1,4 @@
+#include "dbg.h"
 #include "kheap.h"
 #include "lib.h"
 #include "proc.h"
@@ -231,7 +232,8 @@ static void kernel_init_user_process(uint32 pid, ptr_void_function p_func)
 	user_process[pid].status = PROC_RUNNABLE;
 	user_process[pid].apt_sender = IPC_PROC_ALL;
 	user_process[pid].receiver = IPC_PROC_NO;
-	user_process[pid].next_sending_proc = NULL;
+	user_process[pid].proc_sending_to = NULL;
+	user_process[pid].proc_recving_from = NULL;
 }
 
 /*
@@ -288,9 +290,11 @@ void kernel_main(void)
 	kernel_init_user_process(0, &user_main_A);
 	kernel_init_user_process(1, &user_main_B);
 	kernel_init_user_process(2, &user_main_C);
-
+/*
 	user_process[0].status = PROC_SLEEP;
 	user_process[1].status = PROC_SLEEP;
+	user_process[2].status = PROC_SLEEP;
+*/
 }
 
 
@@ -333,6 +337,11 @@ void user_main_B(void)
 	uint32 row;
 	uint32 col;
 	uint32 count = 0;
+	rtc ret;
+	struct proc_msg pmsg;
+
+	pmsg.msg_src = 10;
+	pmsg.msg_type = 200;
 
 	cstr_to_vga_str(vmsg, msg);
 
@@ -346,6 +355,10 @@ void user_main_B(void)
 		print_cstring_pos(count_str, row, col);
 
 		++count;
+		if (count % 1000 == 0) {
+			send_msg(2, &pmsg);
+			assert(0);
+		}
 	}
 
 	kfree(vmsg);
