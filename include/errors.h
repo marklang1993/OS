@@ -5,8 +5,9 @@
 
 typedef		int32		rtc;
 
-/* Error Code Definitions */
-#define		OK		0
+/* Information/Error Code Definitions */
+#define		INOMSG		1		/* No message available */
+#define		OK		0		/* OK */
 #define		EINVARG		-1		/* Invalid arguments */
 #define		EBUFEMP		-2		/* Buffer empty */
 #define		EBUFFUL		-3		/* Buffer full */
@@ -17,6 +18,5 @@ typedef		int32		rtc;
 #define		EOUTMEM		-8		/* Out of memory */
 #define		EDLOCK		-9		/* Deadlock */
 #define		EINVPID		-10		/* Invalid PID */
-#define		EINVRECV	-11		/* Invalid message receiver */
 
 #endif

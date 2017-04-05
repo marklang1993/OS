@@ -17,7 +17,7 @@ typedef uint32 PROC_STATUS;
 #define PROC_RUNNABLE		1	/* Wait for scheduler */
 #define PROC_RUNNING		2	/* Active */
 #define PROC_SENDING		3	/* Sending message - Blocked */
-#define PROC_RECEVING		4	/* Receving message - Blocked */
+#define PROC_RECEIVING		4	/* Receiving message - Blocked */
 #define PROC_SLEEP		5	/* Sleep - Blocked */
 #define PROC_DEAD		6	/* Dead - Can init. */
 
@@ -57,10 +57,8 @@ struct process
 
 	PROC_STATUS status;			/* Process status */
 	struct proc_msg msg_buf;		/* Process message buffer - copy from user space OR kernel space */
-	uint32 apt_sender;			/* Acceptable sender - as receiver */
-	uint32 receiver;			/* Message receiver - as sender */
-	struct process *proc_sending_to;	/* The process which the current process sends to */
-	struct process *proc_recving_from;	/* The process which the current process receives from */
+	struct process *proc_sending_to;	/* The process which the current process is sending to */
+	struct process *proc_next_receive;	/* Next sending process on the waiting list */
 };
 
 /* Process related Functions */

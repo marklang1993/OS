@@ -83,7 +83,10 @@ rtc send_msg(uint32 dst, struct proc_msg* ptr_msg)
 rtc recv_msg(uint32 src, struct proc_msg* ptr_msg)
 {
 	rtc ret;
-	sys_call(SYS_CALL_RECV_MSG, &ret, src, ptr_msg);
+	do {
+		/* If no message is available but unblocked, retry */
+		sys_call(SYS_CALL_RECV_MSG, &ret, src, ptr_msg);
+	} while (ret == INOMSG);
 
 	return ret;
 }
@@ -114,33 +117,28 @@ rtc comm_msg(uint32 target, struct proc_msg* ptr_msg)
 rtc sys_call_send_msg(void *base_arg)
 {
 	rtc ret;
-	struct process *dst_proc;	/* Dest. process */
+	struct process *dst_proc;	/* Dst. process */
+	struct process *next_recv_proc;	/* Next process which receives from */
 
 	/* Get arguments */
 	uint32 dst = *((uint32 *)base_arg);
 	struct proc_msg *ptr_msg = *((struct proc_msg **)(((uint32 *)base_arg) + 1));
-
 	COPY_ARG();
-	printk("dst pid: %u, ptr_msg: 0x%x\n", dst, (uint32)ptr_msg);
-	printk("msg_src: %u, msg_type: %u\n", ptr_msg->msg_src, ptr_msg->msg_type);
 
-	/* Check PID & Process status  & Self-sending */
+	/* Check PID & Process status & Self-sending */
 	if (dst >= USER_PROCESS_COUNT) {
 		return EINVPID;
 	}
 	dst_proc = &user_process[dst];
 	if (dst_proc->status == PROC_UNINIT ||
 	    dst_proc->status == PROC_DEAD) {
-		/* Dest. process status is incorrect */
+		/* Dst. process status is incorrect */
 		return EINVPID;
 	}
 	if (dst_proc == current_user_process) {
+		/* Self-sending */
 		return EINVPID;
 	}
-
-	/* ASSERT current_user_process status */
-	kassert(IPC_PROC_NO == current_user_process->receiver);
-	kassert(NULL == ((uint32)current_user_process->proc_sending_to));
 
 	/* Check Deadlock */
 	ret = is_deadlock(dst);
@@ -148,30 +146,46 @@ rtc sys_call_send_msg(void *base_arg)
 		return ret;
 	}
 
-	/* Check acceptable receiver */
-	if (dst_proc->apt_sender != IPC_PROC_ALL) {
-		if (dst_proc->apt_sender != dst) {
-			return EINVRECV;
-		}
-	}
+	/* Record dst. process information */
+	kassert(NULL == ((uint32)current_user_process->proc_sending_to));
+	current_user_process->proc_sending_to = dst_proc;
 
-	/* Check dest. process is RECEVING */
-	if (dst_proc->status == PROC_RECEVING) {
-		COPY_MSG(&(dst_proc->msg_buf), ptr_msg);
+	/* Check dst. process waiting list status */
+	if (NULL == dst_proc->proc_next_receive) {
+		/* # The dst. process msg. buffer is empty */
 
-		kassert(NULL == ((uint32)dst_proc->proc_recving_from));
-		dst_proc->proc_recving_from = current_user_process;
-		dst_proc->status = PROC_RUNNABLE;
+		/* Copy message to src. process & set the next process which needs to receive from */
+		COPY_MSG(&(current_user_process->msg_buf), ptr_msg);
+		dst_proc->proc_next_receive = current_user_process;
 
 	} else {
-		/* Record dest. process information */
-		current_user_process->receiver = dst;
-		current_user_process->proc_sending_to = dst_proc;
-		/* BLOCK current user process */
-		current_user_process->status = PROC_SENDING;
-		/* Force switch to next runnable process */
-		schedule();
+		/* # The dst. process msg. buffer is full */
+
+		/* Copy the message to the src. process msg. buffer */
+		COPY_MSG(&(current_user_process->msg_buf), ptr_msg);
+
+		/* Find the end of the waiting list */
+		next_recv_proc = dst_proc->proc_next_receive;
+		while (NULL != next_recv_proc->proc_next_receive) {
+			next_recv_proc = next_recv_proc->proc_next_receive;
+		}
+		/* Append the current sending process to the end of the waiting list */
+		kassert(NULL == ((uint32)current_user_process->proc_next_receive));
+		next_recv_proc->proc_next_receive = current_user_process;
 	}
+
+	/* Check dst. process is RECEIVING (BLOCKED) */
+	if (dst_proc->status == PROC_RECEIVING) {
+		/* UNBLOCK dst. process */
+		dst_proc->status = PROC_RUNNABLE;
+		unblock(dst_proc);
+	}
+
+	/* BLOCK current process */
+	current_user_process->status = PROC_SENDING;
+	block(current_user_process);
+	/* Force switch to next runnable process */
+	schedule();
 
 	return OK;
 }
@@ -185,11 +199,118 @@ rtc sys_call_send_msg(void *base_arg)
 rtc sys_call_recv_msg(void *base_arg)
 {
 	rtc ret;
+	struct process *src_proc;	/* Src. process */
+	struct process *cur_recv_proc;	/* Current process which receives from */
+	struct process *last_recv_proc;	/* Last process which receives from */
 
 	/* Get arguments */
 	uint32 src = *((uint32 *)base_arg);
 	struct proc_msg *ptr_msg = *((struct proc_msg **)(((uint32 *)base_arg) + 1));
 	COPY_ARG();
 
+	/* Check PID & Process status & Self-receiving */
+	if (src != IPC_PROC_ALL) {
+		/* Not receive from all processes */
+		if (src >= USER_PROCESS_COUNT) {
+			return EINVPID;
+		}
+		src_proc = &user_process[src];
+		if (src_proc->status == PROC_UNINIT ||
+		    src_proc->status == PROC_DEAD) {
+			/* Src. process status is incorrect */
+			return EINVPID;
+		}
+		if (src_proc == current_user_process) {
+			/* Self-receiving */
+			return EINVPID;
+		}
+	}
 
+	/* Check receiver waiting list */
+	if (NULL == current_user_process->proc_next_receive) {
+		/* BLOCK current process */
+		current_user_process->status = PROC_RECEIVING;
+		block(current_user_process);
+		/* Force switch to next runnable process */
+		schedule();
+
+		return INOMSG;
+
+	} else {
+		/* Get next sender */
+		if (src == IPC_PROC_ALL) {
+			/* # Receive from all processes */
+
+			/* Extract the front process in the waiting list */
+			src_proc == current_user_process->proc_next_receive;
+			current_user_process->proc_next_receive = src_proc->proc_next_receive;
+			kassert(PROC_SENDING == src_proc->status);
+
+			/* Copy message to user space */
+			COPY_MSG(ptr_msg, &(src_proc->msg_buf));
+			/* Set sending process status */
+			src_proc->proc_sending_to = NULL;
+			src_proc->status = PROC_RUNNABLE;
+			unblock(src_proc);
+
+			return OK;
+
+		} else {
+			/* # Receive from a specified process */
+			src_proc == current_user_process->proc_next_receive;
+			if (src_proc->pid == src) {
+				/* The front one is what we are searching */
+
+				/* Extract the front process in the waiting list */
+				current_user_process->proc_next_receive = src_proc->proc_next_receive;
+				kassert(PROC_SENDING == src_proc->status);
+
+				/* Copy message to user space */
+				COPY_MSG(ptr_msg, &(src_proc->msg_buf));
+				/* Set sending process status */
+				src_proc->proc_sending_to = NULL;
+				src_proc->status = PROC_RUNNABLE;
+				unblock(src_proc);
+
+				return OK;
+
+			} else {
+				/* Need to search from the 2nd one */
+				last_recv_proc = src_proc;
+				cur_recv_proc = last_recv_proc->proc_next_receive;
+				while (NULL != cur_recv_proc) {
+					if (cur_recv_proc->pid == src) {
+						/* Node found */
+
+						/* Extract the front process in the waiting list */
+						last_recv_proc->proc_next_receive = cur_recv_proc->proc_next_receive;
+						kassert(PROC_SENDING == cur_recv_proc->status);
+
+						/* Copy message to user space */
+						COPY_MSG(ptr_msg, &(cur_recv_proc->msg_buf));
+						/* Set sending process status */
+						cur_recv_proc->proc_sending_to = NULL;
+						cur_recv_proc->status = PROC_RUNNABLE;
+						unblock(cur_recv_proc);
+
+						return OK;
+
+					} else {
+						/* Continue */
+
+						last_recv_proc = cur_recv_proc;
+						cur_recv_proc = cur_recv_proc->proc_next_receive;
+					}
+				}
+				/* # Node not found */
+
+				/* BLOCK current process */
+				current_user_process->status = PROC_RECEIVING;
+				block(current_user_process);
+				/* Force switch to next runnable process */
+				schedule();
+				return INOMSG;
+			}
+		}
+	}
 }

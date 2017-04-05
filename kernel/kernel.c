@@ -230,10 +230,8 @@ static void kernel_init_user_process(uint32 pid, ptr_void_function p_func)
 	user_process[pid].cycles = 0;
 
 	user_process[pid].status = PROC_RUNNABLE;
-	user_process[pid].apt_sender = IPC_PROC_ALL;
-	user_process[pid].receiver = IPC_PROC_NO;
 	user_process[pid].proc_sending_to = NULL;
-	user_process[pid].proc_recving_from = NULL;
+	user_process[pid].proc_next_receive = NULL;
 }
 
 /*
@@ -309,6 +307,8 @@ void user_main_A(void)
 	uint32 row;
 	uint32 col;
 	uint32 count = 0;
+	rtc ret;
+	struct proc_msg pmsg;
 
 	cstr_to_vga_str(vmsg, msg);
 
@@ -316,13 +316,21 @@ void user_main_A(void)
 	{
 		row = 17;
 		col = 0;
-		vga_write_screen(&row, &col, vmsg, strlen(msg));
 
+		if (count % 20000 == 0)
+		{
+			recv_msg(1, &pmsg);
+			print_uint32_pos(pmsg.msg_type, row, 40);
+		}
+
+		vga_write_screen(&row, &col, vmsg, strlen(msg));
 		itoa(count, count_str, 10);
 		print_cstring_pos(count_str, row, col);
 
 		++count;
 	}
+
+	kfree(vmsg);
 }
 
 
@@ -341,8 +349,6 @@ void user_main_B(void)
 	struct proc_msg pmsg;
 
 	pmsg.msg_src = 10;
-	pmsg.msg_type = 200;
-
 	cstr_to_vga_str(vmsg, msg);
 
 	while(1)
@@ -355,9 +361,9 @@ void user_main_B(void)
 		print_cstring_pos(count_str, row, col);
 
 		++count;
-		if (count % 1000 == 0) {
-			send_msg(2, &pmsg);
-			assert(0);
+		if (count % 10000 == 0) {
+			pmsg.msg_type = count / 1000;
+			send_msg(0, &pmsg);
 		}
 	}
 
