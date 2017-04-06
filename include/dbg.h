@@ -8,11 +8,11 @@
 /* assert(exp) */
 #ifdef _OS_DBG_
 #define assert(exp) \
-	if (!exp)	\
+	if (!(exp))	\
 		assert_fail(FALSE, #exp, __FILE__, __BASE_FILE__, __LINE__)
 
 #define kassert(exp) \
-	if (!exp)	\
+	if (!(exp))	\
 		assert_fail(TRUE, #exp, __FILE__, __BASE_FILE__, __LINE__)
 #else
 #define assert(exp)

@@ -310,6 +310,7 @@ void user_main_A(void)
 	rtc ret;
 	struct proc_msg pmsg;
 
+	pmsg.msg_src = 0;
 	cstr_to_vga_str(vmsg, msg);
 
 	while(1)
@@ -317,12 +318,22 @@ void user_main_A(void)
 		row = 17;
 		col = 0;
 
-		if (count % 20000 == 0)
-		{
-			recv_msg(1, &pmsg);
-			print_uint32_pos(pmsg.msg_type, row, 40);
+		if (count % 10000 == 0) {
+			pmsg.msg_type = count / 10000;
+			send_msg(2, &pmsg);
 		}
 
+/*
+		if (count == 20000) {
+			pmsg.msg_type = count / 10000;
+			send_msg(2, &pmsg);
+		}
+
+		if (count == 10000) {
+			pmsg.msg_type = count / 10000;
+			send_msg(2, &pmsg);
+		}
+*/
 		vga_write_screen(&row, &col, vmsg, strlen(msg));
 		itoa(count, count_str, 10);
 		print_cstring_pos(count_str, row, col);
@@ -348,23 +359,24 @@ void user_main_B(void)
 	rtc ret;
 	struct proc_msg pmsg;
 
-	pmsg.msg_src = 10;
+	pmsg.msg_src = 1;
 	cstr_to_vga_str(vmsg, msg);
 
 	while(1)
 	{
 		row = 18;
 		col = 0;
-		vga_write_screen(&row, &col, vmsg, strlen(msg));
 
+		if (count % 10000 == 0) {
+			pmsg.msg_type = count / 10000;
+			send_msg(2, &pmsg);
+		}
+
+		vga_write_screen(&row, &col, vmsg, strlen(msg));
 		itoa(count, count_str, 10);
 		print_cstring_pos(count_str, row, col);
 
 		++count;
-		if (count % 10000 == 0) {
-			pmsg.msg_type = count / 1000;
-			send_msg(0, &pmsg);
-		}
 	}
 
 	kfree(vmsg);
@@ -375,8 +387,33 @@ void user_main_B(void)
  */
 void user_main_C(void)
 {
-	print_set_location(19, 0);
+	char msg[] = "User Process C is Running: ";
+	char count_str[] = "0000000000";
+	struct vga_char *vmsg = kmalloc(sizeof(struct vga_char) * sizeof(msg));
+	uint32 row;
+	uint32 col;
+	uint32 count = 0;
+	rtc ret;
+	struct proc_msg pmsg;
 
-	tty_process(&ttys[0]);
+	cstr_to_vga_str(vmsg, msg);
+
+	while(1)
+	{
+		row = 19;
+		col = 0;
+
+		recv_msg(IPC_PROC_ALL, &pmsg);
+		print_uint32_pos(pmsg.msg_src, row, 40 + pmsg.msg_src * 10);
+		print_uint32_pos(pmsg.msg_type, row, 42 + pmsg.msg_src * 10);
+
+		vga_write_screen(&row, &col, vmsg, strlen(msg));
+		itoa(count, count_str, 10);
+		print_cstring_pos(count_str, row, col);
+
+		++count;
+	}
+
+	kfree(vmsg);
 }
 
