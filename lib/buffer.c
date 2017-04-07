@@ -133,6 +133,20 @@ rtc cbuf_write(struct cbuf *ptr_cbuf, uint32 val)
 	return OK;
 }
 
+/*
+ # Check Is the Circular Buffer Empty
+ @ ptr_cbuf : Pointer to a circular buffer
+ */
+BOOL cbuf_is_empty(struct cbuf *ptr_cbuf)
+{
+	/* Check pointer of cbuf */
+        if (NULL == ptr_cbuf) {
+                return EINVARG;
+        }
+
+	return (0 == ptr_cbuf->count) ? TRUE : FALSE;
+}
+
 
 /* String Buffer - Non-thread safe */
 

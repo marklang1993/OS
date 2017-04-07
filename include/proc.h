@@ -1,6 +1,7 @@
 #ifndef _PROC_H_
 #define _PROC_H_
 
+#include "buffer.h"
 #include "interrupt.h"
 #include "ipc.h"
 #include "pm.h"
@@ -18,8 +19,9 @@ typedef uint32 PROC_STATUS;
 #define PROC_RUNNING		2	/* Active */
 #define PROC_SENDING		3	/* Sending message - Blocked */
 #define PROC_RECEIVING		4	/* Receiving message - Blocked */
-#define PROC_SLEEP		5	/* Sleep - Blocked */
-#define PROC_DEAD		6	/* Dead - Can init. */
+#define PROC_WAIT_INT		5	/* Wait for interrupt - Blocked */
+#define PROC_SLEEP		6	/* Sleep - Blocked */
+#define PROC_DEAD		7	/* Dead - Can init. */
 
 /* Process Stack Frame - Kernel & User*/
 struct process_stack_frame
@@ -57,8 +59,8 @@ struct process
 
 	PROC_STATUS status;			/* Process status */
 	struct proc_msg msg_buf;		/* Process message buffer - copy from user space OR kernel space */
-	struct process *proc_sending_to;	/* The process which the current process is sending to */
-	struct process *proc_next_receive;	/* Next sending process on the waiting list */
+	struct process *proc_sending_to; /* The process which the current process is sending to */
+	struct cbuf recv_queue;			/* Queue of all sending process */
 };
 
 /* Process related Functions */

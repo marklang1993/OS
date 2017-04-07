@@ -29,6 +29,7 @@ struct process user_process[USER_PROCESS_COUNT];
 // Stack pointer in kernel
 uint32 kernel_esp;
 
+void tty_main(void);
 void user_main_A(void);
 void user_main_B(void);
 void user_main_C(void);
@@ -195,7 +196,9 @@ static void kernel_init_idt(void)
 
 static void kernel_init_user_process(uint32 pid, ptr_void_function p_func)
 {
-	// Init. ldt in user process
+	rtc ret;
+
+	/* Init. ldt in user process */
 	memset((void*)(user_process + pid), 0, sizeof(struct process));
 	kernel_init_dt_entry(
 			&user_process[pid].ldt[0],
@@ -212,18 +215,18 @@ static void kernel_init_user_process(uint32 pid, ptr_void_function p_func)
                         TYPE_D_W + TYPE_D_R + S_DC + P_T + D_EC_32 + G_4KB + DPL_3
                         );
 
-	// Init. stack frame
+	/* Init. stack frame */
 	user_process[pid].stack_frame.gs = KERNEL_GDT_VIDEO_SELECTOR;
 	user_process[pid].stack_frame.fs = KERNEL_LDT_DATA_SELECTOR;
 	user_process[pid].stack_frame.es = KERNEL_LDT_DATA_SELECTOR;
 	user_process[pid].stack_frame.ds = KERNEL_LDT_DATA_SELECTOR;
 	user_process[pid].stack_frame.int_frame.eip = (uint32)p_func;
 	user_process[pid].stack_frame.int_frame.cs = KERNEL_LDT_CODE_SELECTOR;	
-	user_process[pid].stack_frame.int_frame.eflags = 0x3202;	// IOPL = 3
+	user_process[pid].stack_frame.int_frame.eflags = 0x3202;	/* IOPL = 3 */
 	user_process[pid].stack_frame.int_frame.esp = (uint32)(user_process[pid].stack + PROCESS_STACK_SIZE);
 	user_process[pid].stack_frame.int_frame.ss = KERNEL_LDT_DATA_SELECTOR;
 
-	// Init. other parameters
+	/* Init. other parameters */
 	user_process[pid].ldt_ptr = (SEL_TO_IDX(KERNEL_GDT_FLAT_LDT_0_SELECTOR) + pid) << 3;
 	user_process[pid].pid = pid;
 	user_process[pid].priority = pid;
@@ -231,7 +234,10 @@ static void kernel_init_user_process(uint32 pid, ptr_void_function p_func)
 
 	user_process[pid].status = PROC_RUNNABLE;
 	user_process[pid].proc_sending_to = NULL;
-	user_process[pid].proc_next_receive = NULL;
+	ret = cbuf_init(&user_process[pid].recv_queue, USER_PROCESS_COUNT, NULL, 0);
+	if (ret != OK) {
+		panic("INIT. PROCESS FAILED!");
+	}
 }
 
 /*
@@ -243,6 +249,8 @@ static void kernel_init_dev(void)
 	i8259a_init();
 	i8259a_set_handler(INDEX_8259A_CLOCK, &process_scheduler);
 	i8259a_set_handler(INDEX_8259A_KEYBOARD, &keyboard_interrupt_handler);
+	/* Init. clock for process scheduling */
+	i8259a_int_enable(INDEX_8259A_CLOCK);
 
 	/* 8253 PIT */
 	i8253_init();
@@ -254,7 +262,6 @@ static void kernel_init_dev(void)
 	tty_init(&ttys[0], 0, TRUE);
 	tty_init(&ttys[1], 50, FALSE);
 	tty_init(&ttys[2], 100, FALSE);
-
 }
 
 /* 
@@ -288,11 +295,21 @@ void kernel_main(void)
 	kernel_init_user_process(0, &user_main_A);
 	kernel_init_user_process(1, &user_main_B);
 	kernel_init_user_process(2, &user_main_C);
+//	kernel_init_user_process(3, &tty_main);
 /*
 	user_process[0].status = PROC_SLEEP;
 	user_process[1].status = PROC_SLEEP;
 	user_process[2].status = PROC_SLEEP;
 */
+}
+
+
+/*
+ # TTY Main
+ */
+void tty_main(void)
+{
+	tty_process(&(ttys[0]));
 }
 
 
@@ -321,22 +338,13 @@ void user_main_A(void)
 		if (count % 10000 == 0) {
 			pmsg.msg_type = count / 10000;
 			send_msg(2, &pmsg);
+			recv_msg(2, &pmsg);
 		}
 
-/*
-		if (count == 20000) {
-			pmsg.msg_type = count / 10000;
-			send_msg(2, &pmsg);
-		}
-
-		if (count == 10000) {
-			pmsg.msg_type = count / 10000;
-			send_msg(2, &pmsg);
-		}
-*/
 		vga_write_screen(&row, &col, vmsg, strlen(msg));
 		itoa(count, count_str, 10);
 		print_cstring_pos(count_str, row, col);
+		print_uint32_pos(pmsg.msg_type, row, 40);
 
 		++count;
 	}
@@ -370,11 +378,13 @@ void user_main_B(void)
 		if (count % 10000 == 0) {
 			pmsg.msg_type = count / 10000;
 			send_msg(2, &pmsg);
+			recv_msg(2, &pmsg);
 		}
 
 		vga_write_screen(&row, &col, vmsg, strlen(msg));
 		itoa(count, count_str, 10);
 		print_cstring_pos(count_str, row, col);
+		print_uint32_pos(pmsg.msg_type, row, 40);
 
 		++count;
 	}
@@ -404,8 +414,18 @@ void user_main_C(void)
 		col = 0;
 
 		recv_msg(IPC_PROC_ALL, &pmsg);
+
 		print_uint32_pos(pmsg.msg_src, row, 40 + pmsg.msg_src * 10);
 		print_uint32_pos(pmsg.msg_type, row, 42 + pmsg.msg_src * 10);
+
+		if (pmsg.msg_src == 0) {
+			pmsg.msg_type = count;
+			send_msg(pmsg.msg_src, &pmsg);
+		}
+		if (pmsg.msg_src == 1) {
+			pmsg.msg_type = count * 10;
+			send_msg(pmsg.msg_src, &pmsg);
+		}
 
 		vga_write_screen(&row, &col, vmsg, strlen(msg));
 		itoa(count, count_str, 10);

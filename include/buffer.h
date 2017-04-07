@@ -17,7 +17,7 @@ rtc cbuf_init(struct cbuf *ptr_cbuf, uint32 capacity, const uint32 *ptr_data, ui
 void cbuf_uninit(struct cbuf *ptr_cbuf);
 rtc cbuf_read(struct cbuf *ptr_cbuf, uint32 *ptr_val);
 rtc cbuf_write(struct cbuf *ptr_cbuf, uint32 val);
-
+BOOL cbuf_is_empty(struct cbuf *ptr_cbuf);
 
 /* String Buffer - Non-thread safe */
 struct strbuf
