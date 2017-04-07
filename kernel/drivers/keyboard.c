@@ -1,7 +1,23 @@
+#include "buffer.h"
+#include "dbg.h"
 #include "interrupt.h"
 #include "io_port.h"
-#include "buffer.h"
+#include "drivers/i8259a.h"
 #include "drivers/keyboard.h"
+
+/* Keyboard Ports */
+#define PORT_8042_BUF_R         0x60
+#define PORT_8042_BUF_W         PORT_8042_BUF_R
+#define PORT_8042_STAT_R        0x64
+#define PORT_8042_CTRL_W        PORT_8042_STAT_R
+
+/* Status Register Masks */
+#define MASK_8042_OUT_BUF       0x1		/* Out to system */
+#define MASK_8042_IN_BUF        0x2		/* Out to 8042 */
+#define MASK_8042_SYS_FLAG      0x4
+#define MASK_8042_CMD_DATA      0x8
+#define MASK_8042_TIME_OUT      0x40
+#define MASK_8042_PARITY_ERR    0x80
 
 /* Keymap related macros */
 #define KB_BUF_CAPA		16
@@ -178,7 +194,15 @@ static BOOL is_e1 = FALSE;		/* Keycode E1 flag */
  */
 void keyboard_init(void)
 {
-	cbuf_init(&keyboard_buffer, KB_BUF_CAPA, NULL, 0);
+	rtc ret;
+
+	/* Init. buffer */
+	ret = cbuf_init(&keyboard_buffer, KB_BUF_CAPA, NULL, 0);
+	kassert(ret == OK);
+
+	/* Turn on the keyboard interrupt */
+	ret = i8259a_int_enable(INDEX_8259A_KEYBOARD);
+	kassert(ret == OK);
 }
 
 

@@ -3,6 +3,7 @@
 #include "lib.h"
 #include "proc.h"
 #include "syscall.h"
+#include "drivers/hdd.h"
 #include "drivers/i8253.h"
 #include "drivers/keyboard.h"
 #include "drivers/tty.h"
@@ -30,6 +31,7 @@ struct process user_process[USER_PROCESS_COUNT];
 uint32 kernel_esp;
 
 void tty_main(void);
+void fs_main(void);
 void user_main_A(void);
 void user_main_B(void);
 void user_main_C(void);
@@ -186,6 +188,7 @@ static void kernel_init_idt(void)
 	/* 8259A interrupts */
 	kernel_init_idt_entry(INTERRUPT_8259A_OFFSET + INDEX_8259A_CLOCK, &int_handler_clock, DPL_0);
 	kernel_init_idt_entry(INTERRUPT_8259A_OFFSET + INDEX_8259A_KEYBOARD, &int_handler_keyboard, DPL_0);
+	kernel_init_idt_entry(INTERRUPT_8259A_OFFSET + INDEX_8259A_HDD, &int_handler_hdd, DPL_0);
 	/* System call interrupt */
 	kernel_init_idt_entry(INT_SYS_CALL, &int_handler_syscall, DPL_3);
 
@@ -249,13 +252,17 @@ static void kernel_init_dev(void)
 	i8259a_init();
 	i8259a_set_handler(INDEX_8259A_CLOCK, &process_scheduler);
 	i8259a_set_handler(INDEX_8259A_KEYBOARD, &keyboard_interrupt_handler);
+	i8259a_set_handler(INDEX_8259A_HDD, &hdd_interrupt_handler);
 	/* Init. clock for process scheduling */
 	i8259a_int_enable(INDEX_8259A_CLOCK);
 
 	/* 8253 PIT */
 	i8253_init();
 
-	/* keyboard */
+	/* Harddisk */
+	hdd_init();
+
+	/* Keyboard */
 	keyboard_init();
 
 	/* TTYs */
@@ -295,7 +302,11 @@ void kernel_main(void)
 	kernel_init_user_process(0, &user_main_A);
 	kernel_init_user_process(1, &user_main_B);
 	kernel_init_user_process(2, &user_main_C);
-//	kernel_init_user_process(3, &tty_main);
+	kernel_init_user_process(3, &tty_main);
+	kernel_init_user_process(DRV_PID_HDD, &hdd_message_dispatcher);
+	kernel_init_user_process(DRV_PID_FS, &fs_main);
+
+
 /*
 	user_process[0].status = PROC_SLEEP;
 	user_process[1].status = PROC_SLEEP;
@@ -310,6 +321,20 @@ void kernel_main(void)
 void tty_main(void)
 {
 	tty_process(&(ttys[0]));
+}
+
+/*
+ # File system main
+ */
+void fs_main(void)
+{
+	struct proc_msg msg;
+
+	msg.msg_type = HDD_MSG_OPEN;
+
+	printk("FS SEND MSG!\n");
+	send_msg(DRV_PID_HDD, &msg);
+	while(1);
 }
 
 

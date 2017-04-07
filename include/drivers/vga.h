@@ -18,7 +18,8 @@ struct vga_char {
 	char data;		/* Character data */
 
 	union {
-		char data;	/* Color data*/
+		uint8 data;	/* Color data*/
+
 		uint8 char_B:1;
 		uint8 char_G:1;
 		uint8 char_R:1;

@@ -112,9 +112,9 @@ rtc comm_msg(uint32 target, struct proc_msg* ptr_msg)
 /*
  # IPC - wait for interrupt (Ring 1/3)
  */
-rtc wait_int()
+void wait_int()
 {
-	return recv_msg(IPC_PROC_INT, NULL);
+	recv_msg(IPC_PROC_INT, NULL);
 }
 
 /*
@@ -126,14 +126,15 @@ void resume_int(uint32 pid)
 	struct process *dst_proc;
 
 	/* Check PID */
-	if (pid < USER_PROCESS_COUNT) {
-		panic("INVALID PID IN RESUME INTERRUPT!");
+	if (pid >= USER_PROCESS_COUNT) {
+		panic("INVALID PID IN RESUME INTERRUPT! PID: %u", pid);
 	}
 	dst_proc = &(user_process[pid]);
 
 	/* Check Process Status*/
 	if (dst_proc->status != PROC_WAIT_INT) {
-		panic("INVALID STATUS IN RESUME INTERRUPT!");
+		panic("INVALID STATUS IN RESUME INTERRUPT!\nADDRESS: 0x%x; PID: %u; STATUS: %u",
+		dst_proc, pid, dst_proc->status);
 	}
 
 	/* UNBLOCK dst. process */
@@ -233,6 +234,8 @@ rtc sys_call_recv_msg(void *base_arg)
 		/* BLOCK current process */
 		current_user_process->status = PROC_WAIT_INT;
 		block(current_user_process);
+
+		printk("IPC_PROC_INT Address: 0x%x; PID: %u; Status: %u\n", current_user_process, current_user_process->pid, current_user_process->status);
 		/* Force switch to next runnable process */
 		schedule();
 

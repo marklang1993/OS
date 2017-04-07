@@ -20,14 +20,16 @@ void assert_fail(
 void panic(const char *format, ...)
 {
 	char msg[] = "KERNEL PANIC: ";
+	const char *ptr_msg = msg;
+	const char **pp_msg = &ptr_msg;
 	uint32 row, col;
+
+	row = 0;
+	col = 0;
 
 	cli();		/* Turn off interrupt */
 
-	row = 0;
-	col = strlen(msg);
-
-	printk(msg);
+	printb(&row, &col, pp_msg);
 	printb(&row, &col, &format);
 	
 	while(1);	/* Stop here */

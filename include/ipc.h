@@ -9,16 +9,18 @@
 #define IPC_PROC_NO		USER_PROCESS_COUNT + 1
 #define IPC_PROC_INT		USER_PROCESS_COUNT + 2
 
-/* IPC message source - could be real pid "OR" IPC pid */
-typedef uint32 IPC_MSG_SRC;
-
 /* IPC message type */
 typedef uint32 IPC_MSG_TYPE;
-#define IPC_MSG_INT_KEYBOARD	0
+/* IPC message type generator
+ * format:       XX     | XXXX |  XX
+ *         magic number | pid  | type
+ */
+#define IPC_MSG_TYPE_GEN(magic_num, pid, type) \
+	(((magic_num & 0xff) << 24) | ((pid & 0xffff) << 8) | (type & 0xff))
 
 struct proc_msg
 {
-	IPC_MSG_SRC	msg_src;	/* Source PID */
+	uint32		msg_src;	/* Source process pid OR IPC pid */
 	IPC_MSG_TYPE	msg_type;	/* Message Type */
 };
 
@@ -33,8 +35,8 @@ rtc comm_msg(uint32 dst, struct proc_msg *ptr_msg);
  * wait_int()   : wait for interrupt
  * resume_int() : restart the process after interrupt
  */
-rtc wait_int();		/* ring 1/3 */
-void resume_int();	/* ring 0 */
+void wait_int();		/* ring 1/3 */
+void resume_int(uint32 pid);	/* ring 0 */
 
 /* IPC - sys_call_send_msg() / sys_call_recv_msg() - In Ring 0 */
 rtc sys_call_send_msg(void *base_arg);

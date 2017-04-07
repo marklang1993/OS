@@ -13,6 +13,9 @@ vgaromimage: file=bochs/VGABIOS-lgpl-latest
 floppya: 1_44=boot.img, status=inserted
 # floppyb: 1_44=freedos.img, status=inserted
 
+# harddisk
+ata0-master: type=disk, path="hdd.img", mode=flat
+
 # choose the boot disk.
 boot: a
 

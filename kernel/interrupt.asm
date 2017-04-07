@@ -30,6 +30,7 @@ global int_entry_simd_float_fault
 global int_handler_default 
 global int_handler_clock
 global int_handler_keyboard
+global int_handler_hdd
 global int_handler_syscall
 
 ; kernel.c
@@ -208,12 +209,18 @@ int_handler_default:
 ; # void int_handler_clock(void)
 ; Handle clock interrupt
 int_handler_clock:
-	I8259A_INT_HANDLER INDEX_8259A_CLOCK
+	I8259A_INT_MAIN_HANDLER INDEX_8259A_CLOCK
 
 ; # void int_handler_keyboard(void)
 ; Handle keyboard interrupt
 int_handler_keyboard:
-	I8259A_INT_HANDLER INDEX_8259A_KEYBOARD
+	I8259A_INT_MAIN_HANDLER INDEX_8259A_KEYBOARD
+
+; # void int_handler_hdd(void)
+; Handle harddisk drive interrupt
+int_handler_hdd:
+	I8259A_INT_SLAVE_HANDLER INDEX_8259A_HDD
+
 
 ; # void int_handler_syscall(void)
 ; Handle system call interrupt

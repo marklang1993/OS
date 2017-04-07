@@ -78,9 +78,26 @@ rtc i8259a_set_handler(
  */
 rtc i8259a_int_enable(uint32 index)
 {
+	uint8 value;
+
 	/* Check boundary */
 	if (index >= COUNT_INT_8259A) {
 		return EINVARG;
+	}
+
+	/* Check master OR slave */
+	if (index < COUNT_INT_8259A_MASTER) {
+		/* Master */
+		io_in_byte(PORT_8259A_MAIN_1, &value);
+		value = value & (~(1 << index));
+		io_out_byte(PORT_8259A_MAIN_1, value);
+
+	} else {
+		/* Slave */
+		index -= COUNT_INT_8259A_MASTER;
+		io_in_byte(PORT_8259A_SLAVE_1, &value);
+		value = value & (~(1 << index));
+		io_out_byte(PORT_8259A_SLAVE_1, value);
 	}
 	
 	return OK;
@@ -93,9 +110,26 @@ rtc i8259a_int_enable(uint32 index)
  */
 rtc i8259a_int_disable(uint32 index)
 {
+	uint8 value;
+
 	/* Check boundary */
 	if (index >= COUNT_INT_8259A) {
 		return EINVARG;
+	}
+
+	/* Check master OR slave */
+	if (index < COUNT_INT_8259A_MASTER) {
+		/* Master */
+		io_in_byte(PORT_8259A_MAIN_1, &value);
+		value = value | (1 << index);
+		io_out_byte(PORT_8259A_MAIN_1, value);
+
+	} else {
+		/* Slave */
+		index -= COUNT_INT_8259A_MASTER;
+		io_in_byte(PORT_8259A_SLAVE_1, &value);
+		value = value | (1 << index);
+		io_out_byte(PORT_8259A_SLAVE_1, value);
 	}
 
 	return OK;

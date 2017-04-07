@@ -68,6 +68,7 @@ void int_entry_simd_float_fault(void);
 void int_handler_default(void);
 void int_handler_clock(void);
 void int_handler_keyboard(void);
+void int_handler_hdd(void);
 void int_handler_syscall(void);
 
 #endif

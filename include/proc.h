@@ -7,10 +7,14 @@
 #include "pm.h"
 #include "type.h" 
 
+/* Driver Process ID definition */
+#define DRV_PID_HDD		4
+#define DRV_PID_FS		5
+
 /* Process constants */
 #define PROCESS_NAME_LENGTH	16
 #define PROCESS_STACK_SIZE	0x100	/* 0x100 * 4 byte = 1 KB */
-#define USER_PROCESS_COUNT	3
+#define USER_PROCESS_COUNT	6
 
 /* Process status */
 typedef uint32 PROC_STATUS;

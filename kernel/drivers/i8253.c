@@ -1,6 +1,13 @@
 #include "io_port.h"
 #include "drivers/i8253.h"
 
+/* 8253 Ports */
+#define PORT_8253_COUNTER_0             0x40
+#define PORT_8253_COUNTER_1             0x41
+#define PORT_8253_COUNTER_2             0x42
+#define PORT_8253_CTRL_REG              0x43
+
+
 /* 8253 Control Register Data */
 union i8253_ctrl_reg_data
 {

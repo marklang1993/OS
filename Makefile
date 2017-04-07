@@ -3,7 +3,7 @@
 # Build Target
 OBJECTS = kernel_asm.o kernel_c.o proc.o interrupt_asm.o interrupt_c.o syscall_asm.o syscall_c.o ipc.o
 LIB_OBJECTS = dbg.o kheap.o memory.o buffer.o print.o printk.o io_port.o
-DRV_OBJECTS = i8259a.o i8253.o keyboard.o vga.o tty.o
+DRV_OBJECTS = i8259a.o i8253.o keyboard.o vga.o tty.o hdd.o
 TARGET = boot.bin loader.bin kernel.bin
 TARGET_IMG = boot.img
 
@@ -20,8 +20,8 @@ LINKER = ld
 GCC = gcc
 GCC_FLAGS = -m32 -c -D _OS_DBG_ -fno-zero-initialized-in-bss -fno-builtin -fno-stack-protector -Werror -I include/
 # NOTE: 0x50000(Defined by KernelBaseOffset) + 0x400 (ELF header and other headers)
-# LINKER_FLAGS = -s -m elf_i386 -Ttext 0x50400
-LINKER_FLAGS = -m elf_i386 -Ttext 0x50400
+LINKER_FLAGS = -s -m elf_i386 -Ttext 0x50400
+# LINKER_FLAGS = -m elf_i386 -Ttext 0x50400
 
 # Phony Targets
 .PHONY : all clean
@@ -100,6 +100,9 @@ vga.o :		kernel/drivers/vga.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
 tty.o :		kernel/drivers/tty.c
+		$(GCC) $(GCC_FLAGS) -o $@ $<
+
+hdd.o :		kernel/drivers/hdd.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
 boot.bin : 	boot/boot.asm
