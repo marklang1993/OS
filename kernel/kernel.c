@@ -236,6 +236,7 @@ static void kernel_init_user_process(uint32 pid, ptr_void_function p_func)
 	user_process[pid].cycles = 0;
 
 	user_process[pid].status = PROC_RUNNABLE;
+	user_process[pid].is_interrupt = FALSE;
 	user_process[pid].proc_sending_to = NULL;
 	ret = cbuf_init(&user_process[pid].recv_queue, USER_PROCESS_COUNT, NULL, 0);
 	if (ret != OK) {

@@ -131,15 +131,16 @@ void resume_int(uint32 pid)
 	}
 	dst_proc = &(user_process[pid]);
 
-	/* Check Process Status*/
-	if (dst_proc->status != PROC_WAIT_INT) {
-		panic("INVALID STATUS IN RESUME INTERRUPT!\nADDRESS: 0x%x; PID: %u; STATUS: %u",
-		dst_proc, pid, dst_proc->status);
-	}
+	/* Set interrupt occur flag */
+	kassert(NOT(IS_TRUE(dst_proc->is_interrupt)));
+	dst_proc->is_interrupt = TRUE;
 
-	/* UNBLOCK dst. process */
-	dst_proc->status = PROC_RUNNABLE;
-	unblock(dst_proc);
+	/* Check process status */
+	if (dst_proc->status == PROC_WAIT_INT) {
+		/* UNBLOCK dst. process */
+		dst_proc->status = PROC_RUNNABLE;
+		unblock(dst_proc);
+	}
 }
 
 
@@ -231,18 +232,25 @@ rtc sys_call_recv_msg(void *base_arg)
 
 	/* Check: is source an interrupt */
 	if (src == IPC_PROC_INT) {
-		/* BLOCK current process */
-		current_user_process->status = PROC_WAIT_INT;
-		block(current_user_process);
 
-		printk("IPC_PROC_INT Address: 0x%x; PID: %u; Status: %u\n", current_user_process, current_user_process->pid, current_user_process->status);
-		/* Force switch to next runnable process */
-		schedule();
+		if (IS_TRUE(current_user_process->is_interrupt)) {
+			/* # Interrupt occurs already */
+			/* Clear interrupt occurs flag */
+			current_user_process->is_interrupt = FALSE;
 
-		/* Interrupt does not contain any message,
-		 * and it is used to block, so return OK.
-		 */
-		return OK;
+			return OK;
+
+		} else {
+			/* # NO Interrupt occurs */
+			/* BLOCK current process */
+			current_user_process->status = PROC_WAIT_INT;
+			block(current_user_process);
+
+			/* Force switch to next runnable process */
+			schedule();
+
+			return INOMSG;
+		}
 	}
 
 	/* Check PID & Process status & Self-receiving & Get src_proc */
@@ -355,8 +363,8 @@ rtc sys_call_recv_msg(void *base_arg)
 					/* Copy message to user space */
 					COPY_MSG(ptr_msg, &(ext_proc->msg_buf));
 					/* Set sending process status */
-					kassert(src_proc->proc_sending_to != NULL);
-					src_proc->proc_sending_to = NULL;
+					kassert(ext_proc->proc_sending_to != NULL);
+					ext_proc->proc_sending_to = NULL;
 					kassert(PROC_SENDING == ext_proc->status);
 					ext_proc->status = PROC_RUNNABLE;
 					unblock(ext_proc);

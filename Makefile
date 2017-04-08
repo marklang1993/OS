@@ -20,8 +20,8 @@ LINKER = ld
 GCC = gcc
 GCC_FLAGS = -m32 -c -D _OS_DBG_ -fno-zero-initialized-in-bss -fno-builtin -fno-stack-protector -Werror -I include/
 # NOTE: 0x50000(Defined by KernelBaseOffset) + 0x400 (ELF header and other headers)
-LINKER_FLAGS = -s -m elf_i386 -Ttext 0x50400
-# LINKER_FLAGS = -m elf_i386 -Ttext 0x50400
+# LINKER_FLAGS = -s -m elf_i386 -Ttext 0x50400
+LINKER_FLAGS = -m elf_i386 -Ttext 0x50400
 
 # Phony Targets
 .PHONY : all clean

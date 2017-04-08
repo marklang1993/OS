@@ -63,7 +63,8 @@ struct process
 
 	PROC_STATUS status;			/* Process status */
 	struct proc_msg msg_buf;		/* Process message buffer - copy from user space OR kernel space */
-	struct process *proc_sending_to; /* The process which the current process is sending to */
+	BOOL is_interrupt;			/* Interrupt occur flag */
+	struct process *proc_sending_to; 	/* The process which the current process is sending to */
 	struct cbuf recv_queue;			/* Queue of all sending process */
 };
 

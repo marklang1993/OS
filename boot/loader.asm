@@ -82,7 +82,7 @@ LoadKernelFile:
 
 	mov cx, [KernelFileCopyPosition]		; Restore cx
 	add cx, FloppyBytesPerSector			; cx += FloppyBytesPerSector (= 512)
-	jo LoadKernelFileOverflow			; If kernel file is more than 64KB, overflow
+	jc LoadKernelFileOverflow			; If kernel file is more than 64KB, overflow
 	mov [KernelFileCopyPosition], cx		; Save cx	
 
 	; Check next cluster(sector)
