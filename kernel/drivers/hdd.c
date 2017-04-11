@@ -31,12 +31,39 @@
 #define HDD_DRV_MASTER			0
 #define HDD_DRV_SLAVE			1
 #define HDD_TIMEOUT			500  /* *10ms */
+#define HDD_BYTES_PER_SECTOR		512
 
+/* # HDD internal struct/union */
 
-/* HDD internal global variables */
-static uint8 hdd_status;
-
-/* HDD internal struct/union */
+/* ATA IDENTIFY struct (Incomplete) */
+#pragma pack(push, 1)
+struct ata_identify
+{
+	uint16 skip0;
+	uint16 cnt_cylinders;
+	uint16 skip1;
+	uint16 cnt_headers;
+	uint16 skip2[2];
+	uint16 cnt_sectors;
+	uint16 vendor_id_1[3];
+	char serial_number[20];
+	uint16 skip3[3];
+	char firmware_rev[8];
+	char model_number[40];
+	char skip4;
+	char vendor_id_2;
+	uint16 skip5;
+	struct {
+		char skip0;
+		uint16 is_DMA_sup:1;
+		uint16 is_LBA_sup:1;
+		uint16 skip1:6;
+		uint16 skip2;
+	} capabilities;
+	uint16 skip6[9];
+	uint32 cnt_addressable_sectors;
+};
+#pragma pack(pop)
 
 /* 1. HDD Device Register */
 union hdd_dev_reg
@@ -97,6 +124,37 @@ struct hdd_ctrl_regs
 	union hdd_status_reg cmd;
 };
 
+
+/* HDD internal global variables */
+static uint8 hdd_status;
+static struct ata_identify identify_info;
+
+
+/*
+ # Processing ata identity string
+ @ str: raw string
+ @ len: length of raw string
+ */
+static void ata_id_str_process(char *str, uint32 len)
+{
+	uint32 i, j;
+	uint32 cnt_pairs = len / 2;
+	char tmp;
+
+	/* Swap high byte and low byte within a word */
+	for (i = 0; i < cnt_pairs; ++i)
+	{
+		j = i * 2;
+		tmp = str[j];
+		str[j] = str[j + 1];
+		str[j + 1] = tmp;
+	}
+
+	/* Add end mark of a c-style string */
+	str[len - 1] = '\0';
+}
+
+
 /*
  # HDD wait for device ready
  */
@@ -140,14 +198,18 @@ static void hdd_send_cmd(struct hdd_ctrl_regs *ptr_hdd_ctrl)
 	io_out_byte(PORT_HDD_CMD, ptr_hdd_ctrl->cmd.data);
 }
 
+
 /*
  # HDD_OPEN message handler
  */
 static void hdd_dev_open(void)
 {
 	struct hdd_ctrl_regs ctrl_regs;
-	uint16 buf[256];	/* Store identify data */
-	uint32 i;
+	uint16 buf[256];	/* Store raw identify data */
+
+	uint32 capacities;
+	char str_yes[] = "YES";
+	char str_no[] = "NO";
 
 	/* Prepare the command */
 	memset(&ctrl_regs, 0, sizeof(struct hdd_ctrl_regs));
@@ -163,11 +225,29 @@ static void hdd_dev_open(void)
 
 	printk("HDD READ DATA FINISH!\n");
 
-	for(i = 0; i < 256; ++i)
-	{
-		printk("%x", buf[i]);
-	}
+	/* Format data - discard redundant parts */
+	memcpy(&identify_info, buf, sizeof(struct ata_identify));
 
+	/* Print data */
+	ata_id_str_process(
+		identify_info.serial_number,
+		sizeof(identify_info.serial_number));
+	printk("HDD S/N: %s\n", identify_info.serial_number);
+	ata_id_str_process(identify_info.model_number,
+		sizeof(identify_info.model_number));
+	printk("HDD MODEL: %s\n", identify_info.model_number);
+	printk("C/H/S: %u/%u/%u\n",
+		identify_info.cnt_cylinders,
+		identify_info.cnt_headers,
+		identify_info.cnt_sectors);
+	capacities = identify_info.cnt_addressable_sectors * HDD_BYTES_PER_SECTOR / 1000000;
+	printk("Capacities: %u MB\n", capacities);
+	printk("DMA: %s\t",
+		identify_info.capabilities.is_DMA_sup == 1 ?
+		str_yes : str_no);
+	printk("LBA: %s\n",
+		identify_info.capabilities.is_LBA_sup == 1 ?
+		str_yes : str_no);
 }
 
 
@@ -191,6 +271,7 @@ void hdd_init(void)
 	i8259a_int_enable(INDEX_8259A_SLAVE);	/* IMPORTANT! */
 }
 
+
 /*
  # Harddisk Interrupt Handler (Ring 0)
  */
@@ -204,6 +285,7 @@ void hdd_interrupt_handler(void)
 	/* Resume HDD driver function */
 	resume_int(DRV_PID_HDD);
 }
+
 
 /*
  # Harddisk Driver Message Dispatcher
