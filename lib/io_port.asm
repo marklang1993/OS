@@ -1,7 +1,7 @@
 global io_out_byte
 global io_in_byte
-global io_out_data
-global io_in_data
+global io_bulk_out_word
+global io_bulk_in_word
 
 
 [section .text]
@@ -61,12 +61,12 @@ io_in_byte:
 	ret
 
 
-; # void io_out_data(uint16 io_port, void *ptr_data, uint32 size);
+; # void io_bulk_out_word(uint16 io_port, uint16 *ptr_data, uint32 count);
 ; @ io_port: io port number
-; @ ptr_data: pointer to output data area
-; @ size: size in bytes
+; @ ptr_data: pointer to output uint16 array
+; @ count: count of uint16 elements
 
-io_out_data:
+io_bulk_out_word:
 	push ebp                ; Save frame pointer
 	mov ebp, esp            ; Set new frame pointer
 
@@ -81,7 +81,7 @@ io_out_data:
 	mov ecx, [ss:(ebp+16)]	; Get size
 
 	cld			; Write io port
-	rep outsb
+	rep outsw
 
 	popfd			; Restore changed registers
 	pop esi
@@ -91,13 +91,12 @@ io_out_data:
 	pop ebp			; Restore ebp
 	ret
 
-; # void io_in_data(uint16 io_port, void *ptr_data, uint32 size);
+; # void io_bulk_in_word(uint16 io_port, uint16 *ptr_data, uint32 count);
 ; @ io_port: io port number
-; @ ptr_data: pointer to input data area
-; @ size: size in bytes
+; @ ptr_data: pointer to input uint16 array
+; @ count: count of uint16 elements
 
-
-io_in_data:
+io_bulk_in_word:
 	push ebp                ; Save frame pointer
 	mov ebp, esp            ; Set new frame pointer
 
@@ -118,7 +117,7 @@ io_in_data:
 	mov es, ax
 
 	cld			; Read io port
-	rep insb
+	rep insw
 
 	popfd			; Restore changed registers
 	pop es

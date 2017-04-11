@@ -3,6 +3,7 @@
 #include "lib.h"
 #include "proc.h"
 #include "syscall.h"
+#include "drivers/fs.h"
 #include "drivers/hdd.h"
 #include "drivers/i8253.h"
 #include "drivers/keyboard.h"
@@ -31,7 +32,6 @@ struct process user_process[USER_PROCESS_COUNT];
 uint32 kernel_esp;
 
 void tty_main(void);
-void fs_main(void);
 void user_main_A(void);
 void user_main_B(void);
 void user_main_C(void);
@@ -305,8 +305,7 @@ void kernel_main(void)
 	kernel_init_user_process(2, &user_main_C);
 	kernel_init_user_process(3, &tty_main);
 	kernel_init_user_process(DRV_PID_HDD, &hdd_message_dispatcher);
-	kernel_init_user_process(DRV_PID_FS, &fs_main);
-
+	kernel_init_user_process(DRV_PID_FS, &fs_message_dispatcher);
 
 /*
 	user_process[0].status = PROC_SLEEP;
@@ -322,20 +321,6 @@ void kernel_main(void)
 void tty_main(void)
 {
 	tty_process(&(ttys[0]));
-}
-
-/*
- # File system main
- */
-void fs_main(void)
-{
-	struct proc_msg msg;
-
-	msg.msg_type = HDD_MSG_OPEN;
-
-	printk("FS SEND MSG!\n");
-	send_msg(DRV_PID_HDD, &msg);
-	while(1);
 }
 
 

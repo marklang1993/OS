@@ -18,5 +18,6 @@ typedef		int32		rtc;
 #define		EOUTMEM		-8		/* Out of memory */
 #define		EDLOCK		-9		/* Deadlock */
 #define		EINVPID		-10		/* Invalid PID */
+#define		ETIMEOUT	-11		/* Time out */
 
 #endif

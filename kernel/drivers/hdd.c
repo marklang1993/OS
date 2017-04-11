@@ -9,14 +9,17 @@
 
 /* HDD Ports (WRITE_READ) */
 #define PORT_HDD_DATA			(0x170 | IDE_CH_MASK)
-#define PORT_HDD_FEATURE_ERROR		(0x171 | IDE_CH_MASK)	/* Error */
+#define PORT_HDD_FEATURE		(0x171 | IDE_CH_MASK)
+#define PORT_HDD_ERROR			PORT_HDD_FEATURE
 #define PORT_HDD_SECTOR_CNT		(0x172 | IDE_CH_MASK)
 #define PORT_HDD_LBA_L			(0x173 | IDE_CH_MASK)
 #define PORT_HDD_LBA_M			(0x174 | IDE_CH_MASK)
 #define PORT_HDD_LBA_H			(0x175 | IDE_CH_MASK)
 #define PORT_HDD_DEV			(0x176 | IDE_CH_MASK)
-#define PORT_HDD_CMD_STATUS		(0x177 | IDE_CH_MASK)	/* Status */
-#define PORT_HDD_DEV_CTRL		(0x376 | IDE_CH_MASK)	/* Alternate Status */
+#define PORT_HDD_CMD			(0x177 | IDE_CH_MASK)
+#define PORT_HDD_STATUS			PORT_HDD_CMD
+#define PORT_HDD_DEV_CTRL		(0x376 | IDE_CH_MASK)
+#define PORT_HDD_ALT_STATUS		PORT_HDD_DEV_CTRL
 
 /* HDD BIOS Physical Address */
 #define BIOS_HDD_CNT_DRV		0x475	/* Physical address for getting count of drivers */
@@ -102,11 +105,14 @@ static rtc hdd_wait_busy(void)
 	union hdd_status_reg status;
 
 	while (1) {
-		io_in_byte(PORT_HDD_CMD_STATUS, &status.data);
+		io_in_byte(PORT_HDD_STATUS, &status.data);
+		printk("status: %x\n", status.data);
 		if (!status.busy) {
 			return OK;
 		}
 	}
+
+	return ETIMEOUT;
 }
 
 
@@ -124,14 +130,14 @@ static void hdd_send_cmd(struct hdd_ctrl_regs *ptr_hdd_ctrl)
 	/* Write hdd device control register */
 	io_out_byte(PORT_HDD_DEV_CTRL, ptr_hdd_ctrl->dev_ctrl.data);
 	/* Write hdd parameters */	
-	io_out_byte(PORT_HDD_FEATURE_ERROR, ptr_hdd_ctrl->feature);
+	io_out_byte(PORT_HDD_FEATURE, ptr_hdd_ctrl->feature);
 	io_out_byte(PORT_HDD_SECTOR_CNT, ptr_hdd_ctrl->sector_cnt);
 	io_out_byte(PORT_HDD_LBA_L, ptr_hdd_ctrl->lba_l);
 	io_out_byte(PORT_HDD_LBA_M, ptr_hdd_ctrl->lba_m);
 	io_out_byte(PORT_HDD_LBA_H, ptr_hdd_ctrl->lba_h);
 	io_out_byte(PORT_HDD_DEV, ptr_hdd_ctrl->dev.data);
 	/* Write hdd command */	
-	io_out_byte(PORT_HDD_CMD_STATUS, ptr_hdd_ctrl->cmd.data);
+	io_out_byte(PORT_HDD_CMD, ptr_hdd_ctrl->cmd.data);
 }
 
 /*
@@ -141,20 +147,27 @@ static void hdd_dev_open(void)
 {
 	struct hdd_ctrl_regs ctrl_regs;
 	uint16 buf[256];	/* Store identify data */
+	uint32 i;
 
 	/* Prepare the command */
 	memset(&ctrl_regs, 0, sizeof(struct hdd_ctrl_regs));
-	ctrl_regs.dev_ctrl.data = 0; /* Active */
-	ctrl_regs.dev.data = HDD_DEV_REG_GEN(1, HDD_DRV_MASTER, 0);
+	ctrl_regs.dev_ctrl.data = 0; /* Activate */
+	ctrl_regs.dev.data = HDD_DEV_REG_GEN(0, HDD_DRV_MASTER, 0);
 	ctrl_regs.cmd.data = HDD_IDENTIFY;
 	/* Send command & wait for hdd interrupt */
 	hdd_send_cmd(&ctrl_regs);
 	wait_int();
 
 	/* After hdd interrupt, read data */
-	io_in_data(PORT_HDD_DATA, (void *)buf, sizeof(buf));
+	io_bulk_in_word(PORT_HDD_DATA, buf, (sizeof(buf) / sizeof(uint16)));
 
-	printk("HDD READ DATA FINISH!");
+	printk("HDD READ DATA FINISH!\n");
+
+	for(i = 0; i < 256; ++i)
+	{
+		printk("%x", buf[i]);
+	}
+
 }
 
 
@@ -184,7 +197,7 @@ void hdd_init(void)
 void hdd_interrupt_handler(void)
 {
 	/* Read HDD status */
-	io_in_byte(PORT_HDD_CMD_STATUS, &hdd_status);
+	io_in_byte(PORT_HDD_STATUS, &hdd_status);
 
 	printk("HDD INTERRUPT HANDLED!\n");
 

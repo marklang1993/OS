@@ -9,8 +9,8 @@
 void io_out_byte(uint16 io_port, uint8 data);
 void io_in_byte(uint16 io_port, uint8 *ptr_data);
 
-void io_out_data(uint16 io_port, void *ptr_data, uint32 size);
-void io_in_data(uint16 io_port, void *ptr_data, uint32 size);
+void io_bulk_out_word(uint16 io_port, uint16 *ptr_data, uint32 count);
+void io_bulk_in_word(uint16 io_port, uint16 *ptr_data, uint32 count);
 
 #endif
 

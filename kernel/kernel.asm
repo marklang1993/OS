@@ -58,10 +58,8 @@ Kernel_Start:
 	; Reset esp to kernel esp
 	mov esp, KERNEL_ESP
 
-	sti			; Enable interrupt
-	int 90h			; 0x90 interrupt test
-	
-	call kernel_main 	; Jmp to kernel_main
+	; Jmp to kernel_main
+	call kernel_main
 
 	; Prepare for starting user process
 	; # Load TSS
