@@ -1,0 +1,18 @@
+My first OS project on Intel x86 architecture. I am still considering a good name for it, but I just call it "Mark's OS" currently.
+
+This is a microkernel OS, and I am writing it with some references to Orange's, Minix and xv6.
+
+It does not finish, but I plan to pause the development currently since I will be back to campus and continue to my academic term soon.
+
+- To do list
+
+1. Hard drive driver;
+2. Support FAT12, FAT16, FAT32 and xv6 filesystem;
+3. Use filesystem to build a complete driver framework;
+4. Improve paging mechanism and add virtual memory management;
+5. Enter into the stage of graphics interfaces.
+
+- Way to build:
+
+Simply pull the whole repo and install the lastest bochs.
+Make and run by typing "make run".
