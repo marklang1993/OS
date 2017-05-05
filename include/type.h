@@ -4,7 +4,9 @@
 #ifndef _TYPE_H_
 #define _TYPE_H_
 
-#define 	NULL		0
+#ifndef NULL
+	#define 	NULL		0
+#endif
 
 /* BOOL type related */
 #define 	TRUE		1

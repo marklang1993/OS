@@ -7,6 +7,8 @@ DRV_OBJECTS = i8259a.o i8253.o keyboard.o vga.o tty.o hdd.o fs.o
 TARGET = boot.bin loader.bin kernel.bin
 TARGET_IMG = boot.img
 
+UTILITIES = partition
+
 # Tools, Compilers, Flags, etc...
 ASM = nasm
 ASM_FLAGS = -I include/
@@ -19,6 +21,8 @@ MACHINE = bochs
 LINKER = ld
 GCC = gcc
 GCC_FLAGS = -m32 -c -D _OS_DBG_ -fno-zero-initialized-in-bss -fno-builtin -fno-stack-protector -Werror -I include/
+GPP = g++
+GPP_FLAGS = -std=c++11 -I include/ -I utility/include/
 # NOTE: 0x50000(Defined by KernelBaseOffset) + 0x400 (ELF header and other headers)
 # LINKER_FLAGS = -s -m elf_i386 -Ttext 0x50400
 LINKER_FLAGS = -m elf_i386 -Ttext 0x50400
@@ -33,6 +37,8 @@ all : $(OBJECTS) $(LIB_OBJECTS) $(DRV_OBJECTS) $(TARGET) $(TARGET_IMG)
 	   sudo cp kernel.bin /mnt/floppy/ 
 	   sudo umount /mnt/floppy
 
+utility : $(UTILITIES)
+
 run : 
 	   $(MACHINE) -f bochsrc
 clean : 
@@ -41,6 +47,7 @@ clean :
 	   rm -f $(LIB_OBJECTS)
 	   rm -f $(DRV_OBJECTS)
 	   rm -f $(TARGET_IMG)
+	   rm -f $(UTILITIES)
 
 kernel_asm.o : 	kernel/kernel.asm
 		$(ASM) $(ASM_ELF_FLAGS) -o $@ $<
@@ -121,4 +128,8 @@ boot.img : 	boot.bin
 		$(IMG) if=/dev/zero of=$(TARGET_IMG) $(DISK_IMG_FLAGS)
 		$(IMG_FORMAT) -F 12 -v $(TARGET_IMG) 
 		$(IMG) if=$< of=$(TARGET_IMG) $(BOOT_IMG_FLAGS)
+
+partition:	utility/fs/partition.cpp
+		$(GPP) $(GPP_FLAGS) -o $@ $<
+
 	 

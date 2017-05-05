@@ -162,6 +162,7 @@ static rtc hdd_wait_busy(void)
 {
 	union hdd_status_reg status;
 
+	/* use volatile here? */
 	while (1) {
 		io_in_byte(PORT_HDD_STATUS, &status.data);
 		printk("status: %x\n", status.data);
