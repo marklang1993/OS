@@ -2,6 +2,8 @@
 #include <iostream>
 #include <sstream>
 
+#include "drivers/hdd.h"
+
 #include "partition.h"
 
 using namespace std;
@@ -73,7 +75,7 @@ void Partition::print
         // Output Main Partition Table
         cout<<"Partition Table "<<i + *pOffset<<" - ";
         cout<<"Bootable: "<<
-            string((pEntry->is_bootable & BOOTABLE) != 0 ? "Yes" : "No");
+            string((pEntry->is_bootable & PART_BOOTABLE) != 0 ? "Yes" : "No");
         cout<<" Type: 0x"<<hex<<static_cast<UINT32>(pEntry->type);
         cout<<dec;
         cout<<" Base sector: "<<pEntry->base_sector_lba;
@@ -111,7 +113,7 @@ void Partition::Print()
         // Read logic partition table
         UINT32 extendPartBase =
             pMainTable[i].base_sector_lba
-            * BYTE_PER_SECTOR
+            * HDD_BYTES_PER_SECTOR
             + BASE_PARTITION_TABLE;
         if (!read(pLogicTable, extendPartBase, COUNT_L_PART_TABLE_ENTRY))
             return;
@@ -130,7 +132,7 @@ void Partition::Print()
             UINT32 nextPartBase = 
                 extendPartBase
                 + pLogicTable[1].base_sector_lba
-                * BYTE_PER_SECTOR;
+                * HDD_BYTES_PER_SECTOR;
             if (!read(pLogicTable, nextPartBase, COUNT_L_PART_TABLE_ENTRY))
                 return;
 

@@ -3,6 +3,9 @@
 *.bin
 *.img
 
+# Target Utilities
+partition
+
 # geditor Temporary Files
 *.asm~
 *.inc~

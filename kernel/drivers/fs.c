@@ -1,3 +1,4 @@
+#include "lib.h"
 #include "drivers/fs.h"
 #include "drivers/hdd.h"
 

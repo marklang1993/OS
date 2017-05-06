@@ -1,10 +1,11 @@
 #include "dbg.h"
 #include "io_port.h"
+#include "lib.h"
 #include "drivers/i8259a.h"
 #include "drivers/hdd.h"
 
 /* ATA Channel */
-#define IDE_CH_IS_PRIMARY		1
+#define IDE_CH_IS_PRIMARY		1	/* Only Primary IDE channel is supported */
 #define IDE_CH_MASK			(IDE_CH_IS_PRIMARY << 7)
 
 /* HDD Ports (WRITE_READ) */
@@ -30,8 +31,8 @@
 /* HDD Macros */
 #define HDD_DRV_MASTER			0
 #define HDD_DRV_SLAVE			1
-#define HDD_TIMEOUT			500  /* *10ms */
-#define HDD_BYTES_PER_SECTOR		512
+#define HDD_TIMEOUT			500	/* *10ms */
+#define HDD_MAX_DRIVES			2	/* Primary IDE: Master + Slave */
 
 /* # HDD internal struct/union */
 
