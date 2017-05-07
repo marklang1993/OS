@@ -4,6 +4,11 @@
 #include "drivers/i8259a.h"
 #include "drivers/hdd.h"
 
+#define COPY_BUF(dst, src, size) \
+	kassert(!ENABLE_SPLIT_KUSPACE); \
+	memcpy((void *)(dst), (void *)(src), size)
+
+
 /* ATA Channel */
 #define IDE_CH_IS_PRIMARY		1	/* Only Primary IDE channel is supported */
 #define IDE_CH_MASK			(IDE_CH_IS_PRIMARY << 7)
@@ -27,10 +32,10 @@
 
 /* HDD commands */
 #define HDD_IDENTIFY			0xec
+#define HDD_READ			0x20
+#define HDD_WRITE			0x30
 
 /* HDD Macros */
-#define HDD_DRV_MASTER			0
-#define HDD_DRV_SLAVE			1
 #define HDD_TIMEOUT			500	/* *10ms */
 #define HDD_MAX_DRIVES			2	/* Primary IDE: Master + Slave */
 
@@ -71,13 +76,16 @@ union hdd_dev_reg
 {
 	uint8 data;		/* # Register data */
 
-	uint8 lba_haddr:4;	/* CHS: Header number 
-				 * LBA: LBA28 high address: bit 24~27
-				 */
-	uint8 drv_sel:1;	/* DRV selector: master OR slave */
-	uint8 fix_1:1;
-	uint8 is_lba:1;		/* LBA enable flag */
-	uint8 fix_2:1;
+	struct
+	{
+		uint8 lba_haddr:4;	/* CHS: Header number
+					 * LBA: LBA28 high address: bit 24~27
+					 */
+		uint8 drv_sel:1;	/* DRV selector: master OR slave */
+		uint8 fix_1:1;
+		uint8 is_lba:1;		/* LBA enable flag */
+		uint8 fix_2:1;
+	} b;
 };
 #define HDD_DEV_REG_GEN(is_lba, drv_sel, hs) \
 	(0xa0 | ((is_lba & 0x1) << 6) | ((drv_sel & 0x1) << 4) | \
@@ -89,13 +97,16 @@ union hdd_status_reg
 {
 	uint8 data;		/* # Register data */
 
-	uint8 error:1;		/* Error bit */
-	uint8 obsolete:2;	/* Obsolete bits */
-	uint8 data_req:1;	/* Data Request - ready to transfer data */
-	uint8 param:1;		/* Command dependent - formerly DSC bit */
-	uint8 df_se:1;		/* Device fault / Stream error */
-	uint8 dev_rdy:1;	/* Device ready */
-	uint8 busy:1;		/* Busy. other bits are invalid if set */
+	struct
+	{
+		uint8 error:1;		/* Error bit */
+		uint8 obsolete:2;	/* Obsolete bits */
+		uint8 data_req:1;	/* Data Request - ready to transfer data */
+		uint8 param:1;		/* Command dependent - formerly DSC bit */
+		uint8 df_se:1;		/* Device fault / Stream error */
+		uint8 dev_rdy:1;	/* Device ready */
+		uint8 busy:1;		/* Busy. other bits are invalid if set */
+	} b;
 };
 
 /* 3. HDD Device Control Register */
@@ -103,11 +114,14 @@ union hdd_dev_ctrl_reg
 {
 	uint8 data;		/* # Register data */
 
-	uint8 zero:1;		/* Always 0 */
-	uint8 int_en:1;		/* Interrupt enable */
-	uint8 sw_rst:1;		/* Software reset */
-	uint8 invalid:4;	/* Invalid bits */
-	uint8 hob:1;		/* High order byte - defined by 48-bit address feature set */
+	struct
+	{
+		uint8 zero:1;		/* Always 0 */
+		uint8 int_en:1;		/* Interrupt enable */
+		uint8 sw_rst:1;		/* Software reset */
+		uint8 invalid:4;	/* Invalid bits */
+		uint8 hob:1;		/* High order byte - defined by 48-bit address feature set */
+	} b;
 };
 
 /* #. HDD All Control Registers (WRITE) Struct
@@ -156,6 +170,7 @@ static void ata_id_str_process(char *str, uint32 len)
 }
 
 
+
 /*
  # HDD wait for device ready
  */
@@ -166,8 +181,7 @@ static rtc hdd_wait_busy(void)
 	/* use volatile here? */
 	while (1) {
 		io_in_byte(PORT_HDD_STATUS, &status.data);
-		printk("status: %x\n", status.data);
-		if (!status.busy) {
+		if (!status.b.busy) {
 			return OK;
 		}
 	}
@@ -225,8 +239,6 @@ static void hdd_dev_open(void)
 	/* After hdd interrupt, read data */
 	io_bulk_in_word(PORT_HDD_DATA, buf, (sizeof(buf) / sizeof(uint16)));
 
-	printk("HDD READ DATA FINISH!\n");
-
 	/* Format data - discard redundant parts */
 	memcpy(&identify_info, buf, sizeof(struct ata_identify));
 
@@ -250,6 +262,150 @@ static void hdd_dev_open(void)
 	printk("LBA: %s\n",
 		identify_info.capabilities.is_LBA_sup == 1 ?
 		str_yes : str_no);
+}
+
+
+/*
+ # HDD_READ message handler
+ */
+static void hdd_dev_read(struct ipc_msg_payload_hdd *param)
+{
+	struct hdd_ctrl_regs ctrl_regs;
+	uint16 buf[256]; /* Store raw data read from hd */
+	uint8 *p_buf; /* Byte pointer to buffer */
+	uint32 base_sector, cnt_sectors;
+	uint32 sectors_left;
+	uint8 *p_dst; /* Destination memory pointer */
+
+
+	/* Validate */
+	kassert(param->buf_address != NULL);
+	kassert(param->count != 0);
+	kassert(param->pos + param->count <= HDD_LBA28_MAX);
+
+	base_sector = param->pos;
+	cnt_sectors = param->count;
+
+	/* Read */
+	p_buf = (uint8 *)buf;
+	p_dst = (uint8 *)param->buf_address;
+	while(cnt_sectors != 0) {
+
+		/* Prepare the command */
+		memset(&ctrl_regs, 0, sizeof(struct hdd_ctrl_regs));
+		ctrl_regs.lba_l = (uint8)(base_sector & 0xff);
+		ctrl_regs.lba_m = (uint8)((base_sector & 0xff00) >> 8);
+		ctrl_regs.lba_h = (uint8)((base_sector & 0xff0000) >> 16);
+		ctrl_regs.dev.data = HDD_DEV_REG_GEN(1,
+			IS_TRUE(param->is_master) ? HDD_DRV_MASTER : HDD_DRV_SLAVE,
+			base_sector);
+		if (cnt_sectors < 0xff) {
+			sectors_left = cnt_sectors;
+			ctrl_regs.sector_cnt = cnt_sectors;
+			base_sector += cnt_sectors;
+			cnt_sectors = 0;
+		} else {
+			sectors_left = 0xff;
+			ctrl_regs.sector_cnt = 0xff;
+			base_sector += 0xff;
+			cnt_sectors -= 0xff;
+		}
+		ctrl_regs.cmd.data = HDD_READ;
+
+		/* Send command & wait for hdd interrupt */
+		hdd_send_cmd(&ctrl_regs);
+
+		while(sectors_left != 0) {
+			wait_int();
+			/* Read Data */
+			io_bulk_in_word(
+				PORT_HDD_DATA,
+				buf,
+				(sizeof(buf) / sizeof(uint16))
+			);
+
+			/* Copy data to other process */
+			COPY_BUF(p_dst, p_buf, 512);
+			p_dst += 512;
+			--sectors_left;
+		}
+	}
+}
+
+
+/*
+ # HDD_WRITE message handler
+ */
+static void hdd_dev_write(struct ipc_msg_payload_hdd *param)
+{
+	struct hdd_ctrl_regs ctrl_regs;
+	uint16 buf[256]; /* Store raw data write to hd */
+	uint8 *p_buf; /* Byte pointer to buffer */
+	uint32 base_sector, cnt_sectors;
+	uint32 sectors_left;
+	uint8 *p_src; /* Source memory pointer */
+
+	union hdd_status_reg status;
+
+	/* Validate */
+	kassert(param->buf_address != NULL);
+	kassert(param->count != 0);
+	kassert(param->pos + param->count <= HDD_LBA28_MAX);
+
+	base_sector = param->pos;
+	cnt_sectors = param->count;
+
+	/* Write */
+	p_buf = (uint8 *)buf;
+	p_src = (uint8 *)param->buf_address;
+	while(cnt_sectors != 0) {
+
+		/* Prepare the command */
+		memset(&ctrl_regs, 0, sizeof(struct hdd_ctrl_regs));
+		ctrl_regs.lba_l = (uint8)(base_sector & 0xff);
+		ctrl_regs.lba_m = (uint8)((base_sector & 0xff00) >> 8);
+		ctrl_regs.lba_h = (uint8)((base_sector & 0xff0000) >> 16);
+		ctrl_regs.dev.data = HDD_DEV_REG_GEN(1,
+			IS_TRUE(param->is_master) ? HDD_DRV_MASTER : HDD_DRV_SLAVE,
+			base_sector);
+		if (cnt_sectors < 0xff) {
+			sectors_left = cnt_sectors;
+			ctrl_regs.sector_cnt = cnt_sectors;
+			base_sector += cnt_sectors;
+			cnt_sectors = 0;
+		} else {
+			sectors_left = 0xff;
+			ctrl_regs.sector_cnt = 0xff;
+			base_sector += 0xff;
+			cnt_sectors -= 0xff;
+		}
+		ctrl_regs.cmd.data = HDD_WRITE;
+
+		/* Send command & wait for hdd interrupt */
+		hdd_send_cmd(&ctrl_regs);
+
+		while(sectors_left != 0) {
+			/* Check status */
+			io_in_byte(PORT_HDD_STATUS, &status.data);
+			if (0 == status.b.data_req)
+				panic("HDD DATA_REQ CLEAR!\n");
+
+			/* Copy data to other process */
+			COPY_BUF(p_buf, p_src, 512);
+			/* Write Data */
+			io_bulk_out_word(
+				PORT_HDD_DATA,
+				buf,
+				(sizeof(buf) / sizeof(uint16))
+			);
+			wait_int();
+			printk("data write\n");
+
+			/* Update position */
+			p_src += 512;
+			--sectors_left;
+		}
+	}
 }
 
 
@@ -301,6 +457,7 @@ void hdd_message_dispatcher(void)
 	while(1) {
 		/* Receive message from other processes */
 		recv_msg(IPC_PROC_ALL, &msg);
+		src = msg.msg_src;
 		printk("HDD MSG TYPE: 0x%x\n", msg.msg_type);
 
 		/* Check message type */
@@ -311,9 +468,15 @@ void hdd_message_dispatcher(void)
 			break;
 
 		case HDD_MSG_WRITE:
+			hdd_dev_write((struct ipc_msg_payload_hdd *)msg.payload);
+			msg.msg_type = HDD_MSG_OK;
 			break;
+
 		case HDD_MSG_READ:
+			hdd_dev_read((struct ipc_msg_payload_hdd *)msg.payload);
+			msg.msg_type = HDD_MSG_OK;
 			break;
+
 		case HDD_MSG_CLOSE:
 			break;
 		default:

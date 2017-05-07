@@ -18,6 +18,7 @@ floppya: 1_44=boot.img, status=inserted
 
 # harddisk
 ata0-master: type=disk, path="hdd.img", mode=flat
+ata0-slave: type=disk, path="hdd2.img", mode=flat
 
 # choose the boot disk.
 boot: a

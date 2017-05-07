@@ -20,6 +20,7 @@ struct vga_char {
 	union {
 		uint8 data;	/* Color data*/
 
+		struct {
 		uint8 char_B:1;
 		uint8 char_G:1;
 		uint8 char_R:1;
@@ -29,6 +30,8 @@ struct vga_char {
 		uint8 back_G:1;
 		uint8 back_R:1;
 		uint8 back_H:1;	/* Blink */
+		} b;
+
 	} color;
 };
 

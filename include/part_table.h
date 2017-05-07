@@ -43,8 +43,12 @@ struct partition_table_entry
 	uint8 base_header;
 	union {
 		uint8 data;
+
+		struct {
 		uint8 base_sector:6;
 		uint8 base_cylinder_h:2;
+		} b;
+
 	} base_cs;
 	uint8 base_cylinder_l;
 
@@ -53,8 +57,12 @@ struct partition_table_entry
 	uint8 limit_header;
 	union {
 		uint8 data;
+
+		struct {
 		uint8 limit_sector:6;
 		uint8 limit_cylinder_h:2;
+		} b;
+
 	} limit_cs;
 	uint8 limit_cylinder_l;
 	

@@ -18,11 +18,20 @@ typedef uint32 IPC_MSG_TYPE;
 #define IPC_MSG_TYPE_GEN(magic_num, pid, type) \
 	(((magic_num & 0xff) << 24) | ((pid & 0xffff) << 8) | (type & 0xff))
 
+/* IPC message */
+#define IPC_MSG_CONTENTS_CNT	5
+
 struct proc_msg
 {
 	uint32		msg_src;	/* Source process pid OR IPC pid */
 	IPC_MSG_TYPE	msg_type;	/* Message Type */
+	/*
+	 * Message Payloads
+	 * NOTE: use "uint32" for 4-bytes alignment
+	 */
+	uint32		payload[IPC_MSG_CONTENTS_CNT];
 };
+
 
 /* IPC - send_msg() / recv_msg() - In Ring 1/3
  * comm_msg(): send & receive message (wrapper)

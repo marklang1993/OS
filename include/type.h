@@ -15,13 +15,15 @@
 #define		IS_TRUE(x)	(TRUE == x)
 
 /* Numeric value definitions */
-typedef unsigned int 	uint32;
-typedef unsigned short 	uint16;
-typedef unsigned char	uint8;
-typedef signed int	int32;
-typedef signed short	int16;
-typedef signed char	int8;
-typedef unsigned int	BOOL;
+typedef unsigned long long	uint64;
+typedef unsigned int 		uint32;
+typedef unsigned short		uint16;
+typedef unsigned char		uint8;
+typedef signed long long	int64;
+typedef signed int		int32;
+typedef signed short		int16;
+typedef signed char		int8;
+typedef unsigned int		BOOL;
 
 /* Function pointer definitions */
 typedef void (*ptr_void_function)(void);	/* Function pointer of void type function */

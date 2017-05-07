@@ -1,6 +1,7 @@
 #include "io_port.h"
 #include "drivers/i8253.h"
 
+
 /* 8253 Ports */
 #define PORT_8253_COUNTER_0             0x40
 #define PORT_8253_COUNTER_1             0x41
@@ -8,16 +9,20 @@
 #define PORT_8253_CTRL_REG              0x43
 
 
+#pragma pack(push, 1)
 /* 8253 Control Register Data */
 union i8253_ctrl_reg_data
 {
 	uint8 data;		/* Actual data */
 
-	uint8 unit:1;		/* Unit */
-	uint8 mode:3;		/* Mode */
-	uint8 operation:2;	/* Read/Write/Latch Operation */
-	uint8 selection:2;	/* Selection of Counter */
+	struct {
+		uint8 unit:1;		/* Unit */
+		uint8 mode:3;		/* Mode */
+		uint8 operation:2;	/* Read/Write/Latch Operation */
+		uint8 selection:2;	/* Selection of Counter */
+	} b;
 };
+#pragma pack(pop)
 
 /*
  # Initialize 8253 chip
@@ -29,10 +34,10 @@ void i8253_init(void)
 
 	/* Init. 8253 Controller Register Data */
 	data.data = 0;
-	data.unit = UNIT_8253_BIN;
-	data.mode = MODE_8253_2;
-	data.operation = OP_8253_RW_L_H;
-	data.selection = SEL_8253_COUNTER_0;
+	data.b.unit = UNIT_8253_BIN;
+	data.b.mode = MODE_8253_2;
+	data.b.operation = OP_8253_RW_L_H;
+	data.b.selection = SEL_8253_COUNTER_0;
 
 	/* Init. 8253 Controller Register */
 	io_out_byte(PORT_8253_CTRL_REG, data.data);
