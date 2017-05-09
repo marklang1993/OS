@@ -42,6 +42,18 @@
 
 /* # HDD internal struct/union */
 
+/* Harddisk sector operation parameters */
+struct hdd_sector_param
+{
+        BOOL is_master;
+        /* Base sector */
+        uint32 pos;
+        /* Count of sectors */
+        uint32 count;
+        /* Memory address of buffer in other process */
+        void *buf_address;
+};
+
 /* ATA IDENTIFY struct (Incomplete) */
 #pragma pack(push, 1)
 struct ata_identify
@@ -222,7 +234,7 @@ static void hdd_send_cmd(struct hdd_ctrl_regs *ptr_hdd_ctrl)
 static void hdd_dev_open(void)
 {
 	struct hdd_ctrl_regs ctrl_regs;
-	uint16 buf[256];	/* Store raw identify data */
+	uint16 buf[HDD_BYTES_PER_SECTOR / 2];	/* Store raw identify data */
 
 	uint32 capacities;
 	char str_yes[] = "YES";
@@ -267,13 +279,15 @@ static void hdd_dev_open(void)
 
 
 /*
- # HDD_READ & HDD_WRITE message handler
+ # Harddisk sector read / write
+ @ param   : sector read / write parameters
+ @ is_read : is HDD_READ flag
  */
-static void hdd_dev_data_op(struct ipc_msg_payload_hdd *param, BOOL is_read)
+static void hdd_dev_sector_op(struct hdd_sector_param *param, BOOL is_read)
 {
 	struct hdd_ctrl_regs ctrl_regs;
 	union hdd_status_reg status;
-	uint16 buf[256]; /* Store raw data read from OR write to hd */
+	uint16 buf[HDD_BYTES_PER_SECTOR / 2]; /* Store raw data read from OR write to hd */
 	uint8 *p_buf; /* Byte pointer to buffer */
 	uint32 base_sector, cnt_sectors;
 	uint32 sectors_left;
@@ -328,7 +342,7 @@ static void hdd_dev_data_op(struct ipc_msg_payload_hdd *param, BOOL is_read)
 				);
 
 				/* Copy data to other process */
-				COPY_BUF(p_ext, p_buf, 512);
+				COPY_BUF(p_ext, p_buf, HDD_BYTES_PER_SECTOR);
 
 			} else {
 				/* Check status */
@@ -337,7 +351,7 @@ static void hdd_dev_data_op(struct ipc_msg_payload_hdd *param, BOOL is_read)
 					panic("HDD DATA_REQ CLEAR!\n");
 
 				/* Copy data from other process */
-				COPY_BUF(p_buf, p_ext, 512);
+				COPY_BUF(p_buf, p_ext, HDD_BYTES_PER_SECTOR);
 				/* Write Data */
 				io_bulk_out_word(
 					PORT_HDD_DATA,
@@ -347,9 +361,134 @@ static void hdd_dev_data_op(struct ipc_msg_payload_hdd *param, BOOL is_read)
 				wait_int();
 			}
 			/* Update position */
-			p_ext += 512;
+			p_ext += HDD_BYTES_PER_SECTOR;
 			--sectors_left;
 		}
+	}
+}
+
+
+/*
+ # HDD_READ & HDD_WRITE message handler
+ @ param   : HDD_READ / HDD_WRITE ipc message payload
+ @ is_read : is HDD_READ flag
+ */
+static void hdd_dev_data_op(struct ipc_msg_payload_hdd *param, BOOL is_read)
+{
+	/* Bytes related position */
+	uint64 base_pos, limit_pos;
+	uint32 start_pos, cnt_bytes_left;
+	/* Sectors related position */
+	uint32 base_sector, cnt_sectors;
+	/* Buffer related */
+	uint16 buf[HDD_BYTES_PER_SECTOR / 2]; /* Store raw data read from OR write to hd */
+	uint8 *p_buf; /* Byte pointer to buffer */
+	/* Sector opeation parameter */
+	struct hdd_sector_param sector_param;
+	/* Target memory pointer */
+	uint8 *p_target;
+
+	sector_param.is_master = param->is_master;
+	/* Validate parameters */
+	kassert(param->buf_address != NULL);
+	kassert(param->size != 0);
+
+	/* Calculate base & end position */
+	base_pos = param->base_high;
+	base_pos = base_pos << 32;
+	base_pos += param->base_low;
+	printk("base_high : %x, base_low : %x\n", param->base_high, param->base_low);
+	kassert(base_pos < HDD_LBA28_BYTE_MAX); /* Check for LBA28 maximum byte position */
+	limit_pos = base_pos + param->size;
+	printk("size: %d, limit_pos : %x\n", param->size, limit_pos);
+	kassert(base_pos < limit_pos); /* Check for overflow */
+	kassert(limit_pos < HDD_LBA28_BYTE_MAX); /* Check for LBA28 maximum byte position */
+
+	/* Calculate start & end offsets */
+	start_pos = (uint32)(base_pos % HDD_BYTES_PER_SECTOR);
+	cnt_bytes_left = (uint32)(limit_pos % HDD_BYTES_PER_SECTOR);
+
+	/* Calculate base sector position & count of sectors */
+	base_sector = (uint32)(base_pos / HDD_BYTES_PER_SECTOR);
+	cnt_sectors = (uint32)(limit_pos / HDD_BYTES_PER_SECTOR) - base_sector;
+	cnt_sectors += cnt_bytes_left > 0 ? 1 : 0; /* Check reading 1 more sector is needed */
+
+	kassert(cnt_sectors != 0);
+	p_buf = (uint8 *)buf;
+	p_target = param->buf_address;
+
+	printk("start_pos : %x, cnt_bytes_left : %d\n", start_pos, cnt_bytes_left);
+	printk("base_sector : %x, cnt_sectors : %d\n", base_sector, cnt_sectors);
+	if (1 == cnt_sectors) {
+		/* Prepare for reading 1 sector */
+		sector_param.pos = base_sector;
+		sector_param.count = 1;
+		sector_param.buf_address = p_buf;
+		/* Read */
+		hdd_dev_sector_op(&sector_param, TRUE);
+		/* Return data */
+		if (0 == cnt_bytes_left) {
+			/* Aligned in the end */
+			COPY_BUF(p_target,
+				p_buf + start_pos,
+				HDD_BYTES_PER_SECTOR - start_pos);
+
+		} else {
+			/* Not aligned in the end */
+			COPY_BUF(p_target,
+				p_buf + start_pos,
+				cnt_bytes_left);
+		}
+
+	} else {
+		/* 1. Prepare for read 1st sector */
+		sector_param.pos = base_sector;
+		sector_param.count = 1;
+		sector_param.buf_address = p_buf;
+		/* Read */
+		hdd_dev_sector_op(&sector_param, TRUE);
+		/* Guarantee aligned in the end of 1st sector */
+		COPY_BUF(p_target,
+			p_buf + start_pos,
+			HDD_BYTES_PER_SECTOR - start_pos);
+		/* Update postion */
+		++base_sector;
+		--cnt_sectors;
+		kassert(!ENABLE_SPLIT_KUSPACE);
+		p_target += HDD_BYTES_PER_SECTOR - start_pos;
+
+		/* 2. Prepare for read remained sectors, other than last sector */
+		if (cnt_sectors > 1) {
+			sector_param.pos = base_sector;
+			sector_param.count = cnt_sectors - 1;
+			kassert(!ENABLE_SPLIT_KUSPACE);
+			sector_param.buf_address = p_target;
+			/* Read */
+			hdd_dev_sector_op(&sector_param, TRUE);
+			/* Update position */
+			base_sector += cnt_sectors - 1;
+			kassert(!ENABLE_SPLIT_KUSPACE);
+			kassert(
+				(uint64)(cnt_sectors - 1)
+				* (uint64)HDD_BYTES_PER_SECTOR
+				+ (uint32)p_target
+				< 0xffffffffull
+				);
+			p_target += (cnt_sectors - 1) * HDD_BYTES_PER_SECTOR;
+			cnt_sectors = 1;
+		}
+
+		/* 3. Prepare for read last sector */
+		kassert(cnt_sectors == 1);
+		sector_param.pos = base_sector;
+		sector_param.count = 1;
+		sector_param.buf_address = p_buf;
+		/* Read */
+		hdd_dev_sector_op(&sector_param, TRUE);
+		/* Return data */
+		COPY_BUF(p_target,
+			p_buf,
+			cnt_bytes_left);
 	}
 }
 

@@ -19,10 +19,11 @@
 struct ipc_msg_payload_hdd
 {
 	BOOL is_master;
-	/* Base sector */
-	uint32 pos;
-	/* Count of sectors */
-	uint32 count;
+	/* Base address */
+	uint32 base_low;
+	uint32 base_high;
+	/* Size in bytes */
+	uint32 size;
 	/* Memory address of buffer in other process */
 	void *buf_address;
 };
@@ -31,6 +32,7 @@ struct ipc_msg_payload_hdd
 #define HDD_BYTES_PER_SECTOR	512
 #define HDD_DRIVE_OFFSET	(PART_MAX_PART_MBR + 1)
 #define HDD_LBA28_MAX		0xfffffff
+#define HDD_LBA28_BYTE_MAX	0x1ffffffe00ull
 #define HDD_DRV_MASTER		0
 #define HDD_DRV_SLAVE		1
 

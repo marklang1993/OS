@@ -341,6 +341,8 @@ void user_main_A(void)
 	pmsg.msg_src = 0;
 	cstr_to_vga_str(vmsg, msg);
 
+	while(1);
+
 	while(1)
 	{
 		row = 17;
@@ -381,6 +383,8 @@ void user_main_B(void)
 	pmsg.msg_src = 1;
 	cstr_to_vga_str(vmsg, msg);
 
+	while(1);
+
 	while(1)
 	{
 		row = 18;
@@ -418,6 +422,8 @@ void user_main_C(void)
 	struct proc_msg pmsg;
 
 	cstr_to_vga_str(vmsg, msg);
+
+	while(1);
 
 	while(1)
 	{
