@@ -397,10 +397,8 @@ static void hdd_dev_data_op(struct ipc_msg_payload_hdd *param, BOOL is_read)
 	base_pos = param->base_high;
 	base_pos = base_pos << 32;
 	base_pos += param->base_low;
-	printk("base_high : %x, base_low : %x\n", param->base_high, param->base_low);
 	kassert(base_pos < HDD_LBA28_BYTE_MAX); /* Check for LBA28 maximum byte position */
 	limit_pos = base_pos + param->size;
-	printk("size: %d, limit_pos : %x\n", param->size, limit_pos);
 	kassert(base_pos < limit_pos); /* Check for overflow */
 	kassert(limit_pos < HDD_LBA28_BYTE_MAX); /* Check for LBA28 maximum byte position */
 
@@ -417,8 +415,6 @@ static void hdd_dev_data_op(struct ipc_msg_payload_hdd *param, BOOL is_read)
 	p_buf = (uint8 *)buf;
 	p_target = param->buf_address;
 
-	printk("start_pos : %x, cnt_bytes_left : %d\n", start_pos, cnt_bytes_left);
-	printk("base_sector : %x, cnt_sectors : %d\n", base_sector, cnt_sectors);
 	if (1 == cnt_sectors) {
 		/* Prepare for reading 1 sector */
 		sector_param.pos = base_sector;
@@ -426,18 +422,39 @@ static void hdd_dev_data_op(struct ipc_msg_payload_hdd *param, BOOL is_read)
 		sector_param.buf_address = p_buf;
 		/* Read */
 		hdd_dev_sector_op(&sector_param, TRUE);
-		/* Return data */
-		if (0 == cnt_bytes_left) {
-			/* Aligned in the end */
-			COPY_BUF(p_target,
-				p_buf + start_pos,
-				HDD_BYTES_PER_SECTOR - start_pos);
+
+		/* Determine READ or WRITE */
+		if (IS_TRUE(is_read)) {
+			/* READ - Return data */
+			if (0 == cnt_bytes_left) {
+				/* Aligned in the end */
+				COPY_BUF(p_target,
+					p_buf + start_pos,
+					HDD_BYTES_PER_SECTOR - start_pos);
+
+			} else {
+				/* Not aligned in the end */
+				COPY_BUF(p_target,
+					p_buf + start_pos,
+					cnt_bytes_left - start_pos);
+			}
 
 		} else {
-			/* Not aligned in the end */
-			COPY_BUF(p_target,
-				p_buf + start_pos,
-				cnt_bytes_left);
+			/* WRITE - Directly overwrite on the buffer */
+			if (0 == cnt_bytes_left) {
+				/* Aligned in the end */
+				COPY_BUF(p_buf + start_pos,
+					p_target,
+					HDD_BYTES_PER_SECTOR - start_pos);
+
+			} else {
+				/* Not aligned in the end */
+				COPY_BUF(p_buf + start_pos,
+					p_target,
+					cnt_bytes_left - start_pos);
+			}
+			/* Write back */
+			hdd_dev_sector_op(&sector_param, FALSE);		
 		}
 
 	} else {
@@ -447,10 +464,23 @@ static void hdd_dev_data_op(struct ipc_msg_payload_hdd *param, BOOL is_read)
 		sector_param.buf_address = p_buf;
 		/* Read */
 		hdd_dev_sector_op(&sector_param, TRUE);
+
 		/* Guarantee aligned in the end of 1st sector */
-		COPY_BUF(p_target,
-			p_buf + start_pos,
-			HDD_BYTES_PER_SECTOR - start_pos);
+		/* Determine READ or WRITE */
+		if (IS_TRUE(is_read)) {
+			/* READ - Return data */
+			COPY_BUF(p_target,
+				p_buf + start_pos,
+				HDD_BYTES_PER_SECTOR - start_pos);
+		} else {
+			/* WRITE - Directly overwrite on the buffer */
+			COPY_BUF(p_buf + start_pos,
+				p_target,
+				HDD_BYTES_PER_SECTOR - start_pos);
+			/* Write back */
+			hdd_dev_sector_op(&sector_param, FALSE);
+		}
+
 		/* Update postion */
 		++base_sector;
 		--cnt_sectors;
@@ -463,8 +493,8 @@ static void hdd_dev_data_op(struct ipc_msg_payload_hdd *param, BOOL is_read)
 			sector_param.count = cnt_sectors - 1;
 			kassert(!ENABLE_SPLIT_KUSPACE);
 			sector_param.buf_address = p_target;
-			/* Read */
-			hdd_dev_sector_op(&sector_param, TRUE);
+			/* READ or WRITE */
+			hdd_dev_sector_op(&sector_param, is_read);
 			/* Update position */
 			base_sector += cnt_sectors - 1;
 			kassert(!ENABLE_SPLIT_KUSPACE);
@@ -485,10 +515,21 @@ static void hdd_dev_data_op(struct ipc_msg_payload_hdd *param, BOOL is_read)
 		sector_param.buf_address = p_buf;
 		/* Read */
 		hdd_dev_sector_op(&sector_param, TRUE);
-		/* Return data */
-		COPY_BUF(p_target,
-			p_buf,
-			cnt_bytes_left);
+		/* Determine READ or WRITE */
+		if (IS_TRUE(is_read)) {
+			/* READ - Return data */
+			COPY_BUF(p_target,
+				p_buf,
+				cnt_bytes_left);
+
+		} else {
+			/* WRITE - Directly overwrite on the buffer */
+			COPY_BUF(p_buf,
+				p_target,
+				cnt_bytes_left);
+			/* Write back */
+			hdd_dev_sector_op(&sector_param, FALSE);
+		}
 	}
 }
 
