@@ -39,6 +39,7 @@
 #define HDD_TIMEOUT			500	/* *10ms */
 #define HDD_MAX_DRIVES			2	/* Primary IDE: Master + Slave */
 
+
 /* # HDD internal struct/union */
 
 /* ATA IDENTIFY struct (Incomplete) */
@@ -266,17 +267,17 @@ static void hdd_dev_open(void)
 
 
 /*
- # HDD_READ message handler
+ # HDD_READ & HDD_WRITE message handler
  */
-static void hdd_dev_read(struct ipc_msg_payload_hdd *param)
+static void hdd_dev_data_op(struct ipc_msg_payload_hdd *param, BOOL is_read)
 {
 	struct hdd_ctrl_regs ctrl_regs;
-	uint16 buf[256]; /* Store raw data read from hd */
+	union hdd_status_reg status;
+	uint16 buf[256]; /* Store raw data read from OR write to hd */
 	uint8 *p_buf; /* Byte pointer to buffer */
 	uint32 base_sector, cnt_sectors;
 	uint32 sectors_left;
-	uint8 *p_dst; /* Destination memory pointer */
-
+	uint8 *p_ext; /* Pointer to external memory */
 
 	/* Validate */
 	kassert(param->buf_address != NULL);
@@ -288,7 +289,7 @@ static void hdd_dev_read(struct ipc_msg_payload_hdd *param)
 
 	/* Read */
 	p_buf = (uint8 *)buf;
-	p_dst = (uint8 *)param->buf_address;
+	p_ext = (uint8 *)param->buf_address;
 	while(cnt_sectors != 0) {
 
 		/* Prepare the command */
@@ -310,99 +311,43 @@ static void hdd_dev_read(struct ipc_msg_payload_hdd *param)
 			base_sector += 0xff;
 			cnt_sectors -= 0xff;
 		}
-		ctrl_regs.cmd.data = HDD_READ;
+		/* Prepare for register command */
+		ctrl_regs.cmd.data = IS_TRUE(is_read) ? HDD_READ : HDD_WRITE;
 
 		/* Send command & wait for hdd interrupt */
 		hdd_send_cmd(&ctrl_regs);
 
 		while(sectors_left != 0) {
-			wait_int();
-			/* Read Data */
-			io_bulk_in_word(
-				PORT_HDD_DATA,
-				buf,
-				(sizeof(buf) / sizeof(uint16))
-			);
+			if (IS_TRUE(is_read)) {
+				wait_int();
+				/* Read Data */
+				io_bulk_in_word(
+					PORT_HDD_DATA,
+					buf,
+					(sizeof(buf) / sizeof(uint16))
+				);
 
-			/* Copy data to other process */
-			COPY_BUF(p_dst, p_buf, 512);
-			p_dst += 512;
-			--sectors_left;
-		}
-	}
-}
+				/* Copy data to other process */
+				COPY_BUF(p_ext, p_buf, 512);
 
+			} else {
+				/* Check status */
+				io_in_byte(PORT_HDD_STATUS, &status.data);
+				if (0 == status.b.data_req)
+					panic("HDD DATA_REQ CLEAR!\n");
 
-/*
- # HDD_WRITE message handler
- */
-static void hdd_dev_write(struct ipc_msg_payload_hdd *param)
-{
-	struct hdd_ctrl_regs ctrl_regs;
-	uint16 buf[256]; /* Store raw data write to hd */
-	uint8 *p_buf; /* Byte pointer to buffer */
-	uint32 base_sector, cnt_sectors;
-	uint32 sectors_left;
-	uint8 *p_src; /* Source memory pointer */
-
-	union hdd_status_reg status;
-
-	/* Validate */
-	kassert(param->buf_address != NULL);
-	kassert(param->count != 0);
-	kassert(param->pos + param->count <= HDD_LBA28_MAX);
-
-	base_sector = param->pos;
-	cnt_sectors = param->count;
-
-	/* Write */
-	p_buf = (uint8 *)buf;
-	p_src = (uint8 *)param->buf_address;
-	while(cnt_sectors != 0) {
-
-		/* Prepare the command */
-		memset(&ctrl_regs, 0, sizeof(struct hdd_ctrl_regs));
-		ctrl_regs.lba_l = (uint8)(base_sector & 0xff);
-		ctrl_regs.lba_m = (uint8)((base_sector & 0xff00) >> 8);
-		ctrl_regs.lba_h = (uint8)((base_sector & 0xff0000) >> 16);
-		ctrl_regs.dev.data = HDD_DEV_REG_GEN(1,
-			IS_TRUE(param->is_master) ? HDD_DRV_MASTER : HDD_DRV_SLAVE,
-			base_sector);
-		if (cnt_sectors < 0xff) {
-			sectors_left = cnt_sectors;
-			ctrl_regs.sector_cnt = cnt_sectors;
-			base_sector += cnt_sectors;
-			cnt_sectors = 0;
-		} else {
-			sectors_left = 0xff;
-			ctrl_regs.sector_cnt = 0xff;
-			base_sector += 0xff;
-			cnt_sectors -= 0xff;
-		}
-		ctrl_regs.cmd.data = HDD_WRITE;
-
-		/* Send command & wait for hdd interrupt */
-		hdd_send_cmd(&ctrl_regs);
-
-		while(sectors_left != 0) {
-			/* Check status */
-			io_in_byte(PORT_HDD_STATUS, &status.data);
-			if (0 == status.b.data_req)
-				panic("HDD DATA_REQ CLEAR!\n");
-
-			/* Copy data to other process */
-			COPY_BUF(p_buf, p_src, 512);
-			/* Write Data */
-			io_bulk_out_word(
-				PORT_HDD_DATA,
-				buf,
-				(sizeof(buf) / sizeof(uint16))
-			);
-			wait_int();
-			printk("data write\n");
-
+				/* Copy data from other process */
+				COPY_BUF(p_buf, p_ext, 512);
+				/* Write Data */
+				io_bulk_out_word(
+					PORT_HDD_DATA,
+					buf,
+					(sizeof(buf) / sizeof(uint16))
+				);
+				wait_int();
+			}
 			/* Update position */
-			p_src += 512;
+			p_ext += 512;
 			--sectors_left;
 		}
 	}
@@ -468,12 +413,18 @@ void hdd_message_dispatcher(void)
 			break;
 
 		case HDD_MSG_WRITE:
-			hdd_dev_write((struct ipc_msg_payload_hdd *)msg.payload);
+			hdd_dev_data_op(
+				(struct ipc_msg_payload_hdd *)msg.payload,
+				FALSE
+				);
 			msg.msg_type = HDD_MSG_OK;
 			break;
 
 		case HDD_MSG_READ:
-			hdd_dev_read((struct ipc_msg_payload_hdd *)msg.payload);
+			hdd_dev_data_op(
+				(struct ipc_msg_payload_hdd *)msg.payload,
+				TRUE
+				);
 			msg.msg_type = HDD_MSG_OK;
 			break;
 

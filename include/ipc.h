@@ -19,7 +19,7 @@ typedef uint32 IPC_MSG_TYPE;
 	(((magic_num & 0xff) << 24) | ((pid & 0xffff) << 8) | (type & 0xff))
 
 /* IPC message */
-#define IPC_MSG_CONTENTS_CNT	5
+#define IPC_MSG_PAYLOAD_CNT	5
 
 struct proc_msg
 {
@@ -29,7 +29,7 @@ struct proc_msg
 	 * Message Payloads
 	 * NOTE: use "uint32" for 4-bytes alignment
 	 */
-	uint32		payload[IPC_MSG_CONTENTS_CNT];
+	uint32		payload[IPC_MSG_PAYLOAD_CNT];
 };
 
 

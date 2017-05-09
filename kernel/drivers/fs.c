@@ -11,18 +11,33 @@ void fs_message_dispatcher(void)
 	uint32 i;
 
         msg.msg_type = HDD_MSG_OPEN;
-        send_msg(DRV_PID_HDD, &msg);
-	recv_msg(DRV_PID_HDD, &msg);
+        comm_msg(DRV_PID_HDD, &msg);
 
 	msg.msg_type = HDD_MSG_WRITE;
-	memset(data, 0xcc, 0xa00);
+	memset(data, 0x11, 0xa00);
 	payload = (struct ipc_msg_payload_hdd *)msg.payload;
 	payload->is_master = FALSE;
 	payload->pos = 1;
 	payload->count = 5;
 	payload->buf_address = data;
-	send_msg(DRV_PID_HDD, &msg);
+	comm_msg(DRV_PID_HDD, &msg);
 
+	msg.msg_type = HDD_MSG_READ;
+	payload = (struct ipc_msg_payload_hdd *)msg.payload;
+	payload->is_master = TRUE;
+	payload->pos = 0;
+	payload->count = 1;
+	payload->buf_address = data;
+	comm_msg(DRV_PID_HDD, &msg);
 
+	printk("Data:");
+	for (i = 0; i < 512; ++i) {
+		if (i % 16 == 0) {
+			printk("\nROW:%x  ", i/16);
+		}
+		printk("%x ", data[i]);
+	}
+
+	printk("\nContinue to run fs.c\n");
         while(1);
 }
