@@ -582,14 +582,14 @@ void hdd_message_dispatcher(void)
 	while(1) {
 		/* Receive message from other processes */
 		recv_msg(IPC_PROC_ALL, &msg);
-		src = msg.msg_src;
-		printk("HDD MSG TYPE: 0x%x\n", msg.msg_type);
+		src = msg.src;
+		printk("HDD MSG TYPE: 0x%x\n", msg.type);
 
 		/* Check message type */
-		switch(msg.msg_type) {
+		switch(msg.type) {
 		case HDD_MSG_OPEN:
 			hdd_dev_open();
-			msg.msg_type = HDD_MSG_OK;
+			msg.type = HDD_MSG_OK;
 			break;
 
 		case HDD_MSG_WRITE:
@@ -597,7 +597,7 @@ void hdd_message_dispatcher(void)
 				(struct ipc_msg_payload_hdd *)msg.payload,
 				FALSE
 				);
-			msg.msg_type = HDD_MSG_OK;
+			msg.type = HDD_MSG_OK;
 			break;
 
 		case HDD_MSG_READ:
@@ -605,13 +605,14 @@ void hdd_message_dispatcher(void)
 				(struct ipc_msg_payload_hdd *)msg.payload,
 				TRUE
 				);
-			msg.msg_type = HDD_MSG_OK;
+			msg.type = HDD_MSG_OK;
 			break;
 
 		case HDD_MSG_CLOSE:
+			msg.type = HDD_MSG_OK;
 			break;
 		default:
-			assert(0);
+			panic("HDD RECEIVE UNKNOWN MESSAGE!\n");
 		}
 
 		/* Response message */

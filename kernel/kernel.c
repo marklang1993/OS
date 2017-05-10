@@ -338,7 +338,7 @@ void user_main_A(void)
 	rtc ret;
 	struct proc_msg pmsg;
 
-	pmsg.msg_src = 0;
+	pmsg.src = 0;
 	cstr_to_vga_str(vmsg, msg);
 
 	while(1);
@@ -349,7 +349,7 @@ void user_main_A(void)
 		col = 0;
 
 		if (count % 10000 == 0) {
-			pmsg.msg_type = count / 10000;
+			pmsg.type = count / 10000;
 			send_msg(2, &pmsg);
 			recv_msg(2, &pmsg);
 		}
@@ -357,7 +357,7 @@ void user_main_A(void)
 		vga_write_screen(&row, &col, vmsg, strlen(msg));
 		itoa(count, count_str, 10);
 		print_cstring_pos(count_str, row, col);
-		print_uint32_pos(pmsg.msg_type, row, 40);
+		print_uint32_pos(pmsg.type, row, 40);
 
 		++count;
 	}
@@ -380,7 +380,7 @@ void user_main_B(void)
 	rtc ret;
 	struct proc_msg pmsg;
 
-	pmsg.msg_src = 1;
+	pmsg.src = 1;
 	cstr_to_vga_str(vmsg, msg);
 
 	while(1);
@@ -391,7 +391,7 @@ void user_main_B(void)
 		col = 0;
 
 		if (count % 10000 == 0) {
-			pmsg.msg_type = count / 10000;
+			pmsg.type = count / 10000;
 			send_msg(2, &pmsg);
 			recv_msg(2, &pmsg);
 		}
@@ -399,7 +399,7 @@ void user_main_B(void)
 		vga_write_screen(&row, &col, vmsg, strlen(msg));
 		itoa(count, count_str, 10);
 		print_cstring_pos(count_str, row, col);
-		print_uint32_pos(pmsg.msg_type, row, 40);
+		print_uint32_pos(pmsg.type, row, 40);
 
 		++count;
 	}
@@ -432,16 +432,16 @@ void user_main_C(void)
 
 		recv_msg(IPC_PROC_ALL, &pmsg);
 
-		print_uint32_pos(pmsg.msg_src, row, 40 + pmsg.msg_src * 10);
-		print_uint32_pos(pmsg.msg_type, row, 42 + pmsg.msg_src * 10);
+		print_uint32_pos(pmsg.src, row, 40 + pmsg.src * 10);
+		print_uint32_pos(pmsg.type, row, 42 + pmsg.src * 10);
 
-		if (pmsg.msg_src == 0) {
-			pmsg.msg_type = count;
-			send_msg(pmsg.msg_src, &pmsg);
+		if (pmsg.src == 0) {
+			pmsg.type = count;
+			send_msg(pmsg.src, &pmsg);
 		}
-		if (pmsg.msg_src == 1) {
-			pmsg.msg_type = count * 10;
-			send_msg(pmsg.msg_src, &pmsg);
+		if (pmsg.src == 1) {
+			pmsg.type = count * 10;
+			send_msg(pmsg.src, &pmsg);
 		}
 
 		vga_write_screen(&row, &col, vmsg, strlen(msg));

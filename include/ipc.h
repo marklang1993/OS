@@ -23,8 +23,8 @@ typedef uint32 IPC_MSG_TYPE;
 
 struct proc_msg
 {
-	uint32		msg_src;	/* Source process pid OR IPC pid */
-	IPC_MSG_TYPE	msg_type;	/* Message Type */
+	uint32		src;	/* Source process pid OR IPC pid */
+	IPC_MSG_TYPE	type;	/* Message Type */
 	/*
 	 * Message Payloads
 	 * NOTE: use "uint32" for 4-bytes alignment

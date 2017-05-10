@@ -11,10 +11,10 @@ void fs_message_dispatcher(void)
 	uint8 data[0xa00];
 	uint32 i;
 
-        msg.msg_type = HDD_MSG_OPEN;
+        msg.type = HDD_MSG_OPEN;
         comm_msg(DRV_PID_HDD, &msg);
 
-	msg.msg_type = HDD_MSG_WRITE;
+	msg.type = HDD_MSG_WRITE;
 	memset(data, 0xbb, 0xa00);
 	payload = (struct ipc_msg_payload_hdd *)msg.payload;
 	payload->is_master = FALSE;
@@ -25,7 +25,7 @@ void fs_message_dispatcher(void)
 	comm_msg(DRV_PID_HDD, &msg);
 
 
-	msg.msg_type = HDD_MSG_READ;
+	msg.type = HDD_MSG_READ;
 	memset(data, 0x0, 0xa00);
 	payload = (struct ipc_msg_payload_hdd *)msg.payload;
 	payload->is_master = FALSE;

@@ -191,7 +191,7 @@ rtc sys_call_send_msg(void *base_arg)
 	/* Copy the message to the src. process msg. buffer */
 	COPY_MSG(&(current_user_process->msg_buf), ptr_msg);
 	/* Set source PID */
-	current_user_process->msg_buf.msg_src = current_user_process->pid;
+	current_user_process->msg_buf.src = current_user_process->pid;
 	/* Append the dst. process address to the receive queue */
 	ret = cbuf_write(&(dst_proc->recv_queue), ((uint32)current_user_process));
 	kassert(OK == ret);
