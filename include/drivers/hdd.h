@@ -4,6 +4,20 @@
 #include "part_table.h"
 #include "proc.h"
 
+/*
+ * Current supported hdd devices:
+ * hd0 : primary & master hdd
+ * hd1 : primary & slave hdd
+ *
+ * Plan to support hdd devices:
+ * hd2 : secondary & master hdd
+ * hd3 : secondary & slave hdd
+ */
+#define HDD_DEV_PM		0
+#define HDD_DEV_PS		1
+#define HDD_DEV_SM		2
+#define HDD_DEV_SS		3
+
 /* Harddisk Driver Message Type */
 #define HDD_MAGIC_NUM		'h'
 
@@ -18,7 +32,8 @@
 /* Harddisk Driver Message Payload */
 struct ipc_msg_payload_hdd
 {
-	BOOL is_master;
+	/* Minor device number */
+	uint32 dev_num;
 	/* Base address */
 	uint32 base_low;
 	uint32 base_high;
@@ -29,6 +44,7 @@ struct ipc_msg_payload_hdd
 };
 
 /* Common HDD macros */
+#define HDD_MAX_DRIVES		2	/* Primary IDE: Master + Slave */
 #define HDD_BYTES_PER_SECTOR	512
 #define HDD_DRIVE_OFFSET	(PART_MAX_PART_MBR + 1)
 #define HDD_LBA28_MAX		0xfffffff

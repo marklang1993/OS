@@ -102,7 +102,7 @@ void Partition::Print()
           true
           );
 
-    // Process Logic Partitions
+    // Process Logical Partitions
     partition_table_entry pLogicTable[COUNT_L_PART_TABLE_ENTRY];
     for (UINT32 i = 0; i < COUNT_M_PART_TABLE_ENTRY; ++i)
     {
@@ -110,7 +110,7 @@ void Partition::Print()
         if (pMainTable[i].type != PART_TYPE_EXTENDED)
             continue;
 
-        // Read logic partition table
+        // Read logical partition table
         UINT32 extendPartBase =
             pMainTable[i].base_sector_lba
             * HDD_BYTES_PER_SECTOR
@@ -118,17 +118,17 @@ void Partition::Print()
         if (!read(pLogicTable, extendPartBase, COUNT_L_PART_TABLE_ENTRY))
             return;
 
-        // Print logic partition table
+        // Print logical partition table
         print(pLogicTable,
               &partitionTableOffset,
               COUNT_L_PART_TABLE_ENTRY,
               false
               );
 
-        // Check next logic partiton table
+        // Check next logical partiton table
         while (pLogicTable[1].type == PART_TYPE_EXTENDED)
         {
-            // Read next logic partition table
+            // Read next logical partition table
             UINT32 nextPartBase = 
                 extendPartBase
                 + pLogicTable[1].base_sector_lba
@@ -136,7 +136,7 @@ void Partition::Print()
             if (!read(pLogicTable, nextPartBase, COUNT_L_PART_TABLE_ENTRY))
                 return;
 
-            // Print logic partition table
+            // Print logical partition table
             print(pLogicTable,
                   &partitionTableOffset,
                   COUNT_L_PART_TABLE_ENTRY,
@@ -149,8 +149,12 @@ void Partition::Print()
 
 int main(int argc, char* argv[])
 {
-    Partition partition(string("hdd.img"));
-    partition.Print();
+    Partition partition1(string("hdd.img"));
+    partition1.Print();
+    cout<<endl;
+    Partition partition2(string("hdd2.img"));
+    partition2.Print();
+
 
     return 0;
 }

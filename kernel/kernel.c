@@ -5,6 +5,7 @@
 #include "syscall.h"
 #include "drivers/fs.h"
 #include "drivers/hdd.h"
+#include "drivers/hdd_part.h"
 #include "drivers/i8253.h"
 #include "drivers/keyboard.h"
 #include "drivers/tty.h"
@@ -262,6 +263,7 @@ static void kernel_init_dev(void)
 
 	/* Harddisk */
 	hdd_init();
+	hddp_init();
 
 	/* Keyboard */
 	keyboard_init();
@@ -305,6 +307,7 @@ void kernel_main(void)
 	kernel_init_user_process(2, &user_main_C);
 	kernel_init_user_process(3, &tty_main);
 	kernel_init_user_process(DRV_PID_HDD, &hdd_message_dispatcher);
+	kernel_init_user_process(DRV_PID_HDDP, &hddp_message_dispatcher);
 	kernel_init_user_process(DRV_PID_FS, &fs_message_dispatcher);
 
 /*

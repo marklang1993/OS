@@ -3,7 +3,7 @@
 # Build Target
 OBJECTS = kernel_asm.o kernel_c.o proc.o interrupt_asm.o interrupt_c.o syscall_asm.o syscall_c.o ipc.o
 LIB_OBJECTS = dbg.o kheap.o memory.o buffer.o print.o printk.o io_port.o
-DRV_OBJECTS = i8259a.o i8253.o keyboard.o vga.o tty.o hdd.o fs.o
+DRV_OBJECTS = i8259a.o i8253.o keyboard.o vga.o tty.o hdd.o hdd_part.o fs.o
 TARGET = boot.bin loader.bin kernel.bin
 TARGET_IMG = boot.img
 
@@ -110,6 +110,9 @@ tty.o :		kernel/drivers/tty.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
 hdd.o :		kernel/drivers/hdd.c
+		$(GCC) $(GCC_FLAGS) -o $@ $<
+
+hdd_part.o :	kernel/drivers/hdd_part.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
 fs.o :		kernel/drivers/fs.c

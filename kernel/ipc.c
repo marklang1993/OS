@@ -101,9 +101,8 @@ rtc comm_msg(uint32 target, struct proc_msg* ptr_msg)
 {
 	rtc ret;
 	ret = send_msg(target, ptr_msg);
-	if (ret != OK) {
-		return ret;
-	}
+	if (ret != OK)
+		panic("IPC COMM SEND ERROR!\n");
 
 	ret = recv_msg(target, ptr_msg);
 	return ret;

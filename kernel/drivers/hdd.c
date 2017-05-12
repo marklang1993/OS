@@ -37,7 +37,6 @@
 
 /* HDD Macros */
 #define HDD_TIMEOUT			500	/* *10ms */
-#define HDD_MAX_DRIVES			2	/* Primary IDE: Master + Slave */
 
 
 /* # HDD internal struct/union */
@@ -183,7 +182,6 @@ static void ata_id_str_process(char *str, uint32 len)
 }
 
 
-
 /*
  # HDD wait for device ready
  */
@@ -212,8 +210,6 @@ static void hdd_send_cmd(struct hdd_ctrl_regs *ptr_hdd_ctrl)
 	if (hdd_wait_busy() != OK)
 		panic("HDD TIME OUT!");
 
-	printk("HDD SEND CMD\n");
-
 	/* Write hdd device control register */
 	io_out_byte(PORT_HDD_DEV_CTRL, ptr_hdd_ctrl->dev_ctrl.data);
 	/* Write hdd parameters */	
@@ -231,7 +227,7 @@ static void hdd_send_cmd(struct hdd_ctrl_regs *ptr_hdd_ctrl)
 /*
  # HDD_OPEN message handler
  */
-static void hdd_dev_open(void)
+static void hdd_dev_open(struct ipc_msg_payload_hdd *param)
 {
 	struct hdd_ctrl_regs ctrl_regs;
 	uint16 buf[HDD_BYTES_PER_SECTOR / 2];	/* Store raw identify data */
@@ -243,7 +239,12 @@ static void hdd_dev_open(void)
 	/* Prepare the command */
 	memset(&ctrl_regs, 0, sizeof(struct hdd_ctrl_regs));
 	ctrl_regs.dev_ctrl.data = 0; /* Activate */
-	ctrl_regs.dev.data = HDD_DEV_REG_GEN(0, HDD_DRV_MASTER, 0);
+	ctrl_regs.dev.data = HDD_DEV_REG_GEN(
+					0,
+					param->dev_num == HDD_DEV_PM ?
+						HDD_DRV_MASTER : HDD_DRV_SLAVE,
+					0
+					);
 	ctrl_regs.cmd.data = HDD_IDENTIFY;
 	/* Send command & wait for hdd interrupt */
 	hdd_send_cmd(&ctrl_regs);
@@ -388,10 +389,11 @@ static void hdd_dev_data_op(struct ipc_msg_payload_hdd *param, BOOL is_read)
 	/* Target memory pointer */
 	uint8 *p_target;
 
-	sector_param.is_master = param->is_master;
+	sector_param.is_master = param->dev_num == HDD_DEV_PM ? TRUE : FALSE;
 	/* Validate parameters */
 	kassert(param->buf_address != NULL);
 	kassert(param->size != 0);
+	kassert(param->dev_num <= HDD_DEV_PS); /* Currently, only support primary IDE */
 
 	/* Calculate base & end position */
 	base_pos = param->base_high;
@@ -563,8 +565,6 @@ void hdd_interrupt_handler(void)
 	/* Read HDD status */
 	io_in_byte(PORT_HDD_STATUS, &hdd_status);
 
-	printk("HDD INTERRUPT HANDLED!\n");
-
 	/* Resume HDD driver function */
 	resume_int(DRV_PID_HDD);
 }
@@ -583,13 +583,11 @@ void hdd_message_dispatcher(void)
 		/* Receive message from other processes */
 		recv_msg(IPC_PROC_ALL, &msg);
 		src = msg.src;
-		printk("HDD MSG TYPE: 0x%x\n", msg.type);
 
 		/* Check message type */
 		switch(msg.type) {
 		case HDD_MSG_OPEN:
-			hdd_dev_open();
-			msg.type = HDD_MSG_OK;
+			hdd_dev_open((struct ipc_msg_payload_hdd *)msg.payload);
 			break;
 
 		case HDD_MSG_WRITE:
@@ -597,7 +595,6 @@ void hdd_message_dispatcher(void)
 				(struct ipc_msg_payload_hdd *)msg.payload,
 				FALSE
 				);
-			msg.type = HDD_MSG_OK;
 			break;
 
 		case HDD_MSG_READ:
@@ -605,17 +602,17 @@ void hdd_message_dispatcher(void)
 				(struct ipc_msg_payload_hdd *)msg.payload,
 				TRUE
 				);
-			msg.type = HDD_MSG_OK;
 			break;
 
 		case HDD_MSG_CLOSE:
-			msg.type = HDD_MSG_OK;
 			break;
+
 		default:
-			panic("HDD RECEIVE UNKNOWN MESSAGE!\n");
+			panic("HDD RECEIVED UNKNOWN MESSAGE!\n");
 		}
 
 		/* Response message */
+		msg.type = HDD_MSG_OK;
 		send_msg(src, &msg);
 	}
 }

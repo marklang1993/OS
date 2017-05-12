@@ -3,23 +3,6 @@
 
 #include "type.h"
 
-/*
- * Current supported hdd devices:
- *
- * hd0     : primary & master hdd
- * hd1~4   : primary & master MBR partition 1~4
- * hd1a~1p : primary & master logical partition 1~16 at MBR partition 1
- * hd2a~2p : primary & master logical partition 1~16 at MBR partition 2
- * hd3a~3p : primary & master logical partition 1~16 at MBR partition 3
- * hd4a~4p : primary & master logical partition 1~16 at MBR partition 4
- *
- * hd5     : primary & slave hdd
- * hd6~9   : primary & slave MBR partition 1~4
- * hd6a~6p : primary & slave logical partition 1~16 at MBR partition 1
- * hd7a~7p : primary & slave logical partition 1~16 at MBR partition 2
- * hd8a~8p : primary & slave logical partition 1~16 at MBR partition 3
- * hd9a~9p : primary & slave logical partition 1~16 at MBR partition 4
- */
 
 /* Partition table macros */
 #define BASE_PARTITION_TABLE		0x1be
