@@ -48,7 +48,7 @@ bool Partition::read
 
 void Partition::print
 (
-    partition_table_entry* const pTable,
+    const partition_table_entry* const pTable,
     UINT32* pOffset,
     UINT32 count,
     bool isExtend
@@ -60,7 +60,7 @@ void Partition::print
 
     for (i = 0; i < count; ++i)
     {
-        partition_table_entry* pEntry = pTable + i;
+        const partition_table_entry* pEntry = pTable + i;
         // Check null partition
         if (pEntry->type == 0)
         {

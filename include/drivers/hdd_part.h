@@ -31,20 +31,31 @@
  * hdp6a~6p : primary & slave logical partition 1~16 at MBR partition 3
  * hdp7a~7p : primary & slave logical partition 1~16 at MBR partition 4
  */
-#define HDDP_MAX_CNT		(PART_MAX_PART_MBR * HDD_MAX_DRIVES)
-#define HDDP_MBR_FACTOR		4
+#define HDDP_MAX_MBR_P_CNT	(PART_MAX_PART_MBR * HDD_MAX_DRIVES)
 
+
+/*
+ # HDD Partition Device Number Generator
+ @ mbr     : MBR partition index (Range: 0~7)
+ @ logical : Logical partition index (Range: a~p)
+ */
 #define HDDP_DEV_NUM_GEN(mbr, logical) \
 	((mbr << 8) | (logical == 0 ? 0 : (uint8)(logical - 'a' + 1)))
+/*
+ # Get MBR partition index from HDD Partition Device Number
+ @ dev_number : HDD Partition Device Number
+ */
 #define HDDP_GET_MBR_NUM(dev_number) \
 	((dev_number & 0xff00) >> 8)
+
+
 
 /* Harddisk Partition Driver Message Payload */
 struct ipc_msg_payload_hdd_part
 {
 	/* Minor device number */
 	uint32 dev_num;
-	/* Base address w.r.t partition base address */
+	/* Base address w.r.t PARTITION base address */
 	uint32 base_low;
 	uint32 base_high;
 	/* Size in bytes */

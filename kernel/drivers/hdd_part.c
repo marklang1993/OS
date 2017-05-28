@@ -14,8 +14,10 @@ struct hdd_partition_descriptor
 	BOOL is_open;
 	BOOL is_bootable;
 	uint32 type;
-	uint32 base_sector;
-	uint32 cnt_sectors;
+	uint32 base_sector;	/* Base usable sector index */
+	uint32 last_sector;	/* Last sector index */
+	uint32 cnt_sectors;	/* Count of usable sectors */
+	uint32 rev_sectors;	/* Reserved sectors */
 };
 
 /* Harddisk MBR partition descriptor */
@@ -26,18 +28,20 @@ struct hdd_mbr_partition_descriptor
 };
 
 /* Harddisk partition table */
-static struct hdd_mbr_partition_descriptor hdd_part_table[HDDP_MAX_CNT];
+static struct hdd_mbr_partition_descriptor hdd_part_table[HDDP_MAX_MBR_P_CNT];
 
 
 /*
  # Init. hdd partition descriptor
  @ ptr_descriptor       : pointer to hdd_partition_descriptor initialized
+ @ ptr_last_descriptor  : pointer to last hdd_partition_descriptor initialized
  @ ptr_part_table_entry : raw partition table entry
  @ base_sector_offset   : base_sector_lba offset
  */
 static void hddp_descriptor_init(
 	struct hdd_partition_descriptor *ptr_descriptor,
-	struct partition_table_entry const *ptr_part_table_entry,
+	const struct hdd_partition_descriptor const *ptr_last_descriptor,
+	const struct partition_table_entry const *ptr_part_table_entry,
 	const uint32 base_sector_offset
 )
 {
@@ -54,9 +58,21 @@ static void hddp_descriptor_init(
 	ptr_descriptor->base_sector = ptr_part_table_entry->base_sector_lba +
 				base_sector_offset;
 	ptr_descriptor->cnt_sectors = ptr_part_table_entry->cnt_sectors;
+        ptr_descriptor->last_sector = ptr_descriptor->base_sector +
+				ptr_descriptor->cnt_sectors - 1;
+	/* Calculate reserved sectors of current partition */
+	if (ptr_last_descriptor != NULL) {
+		ptr_descriptor->rev_sectors = ptr_descriptor->base_sector -
+					(ptr_last_descriptor->last_sector + 1);
+	} else {
+		ptr_descriptor->rev_sectors = ptr_descriptor->base_sector - 0;
+	}
 
-	printk("base: %d, cnt: %d\n", ptr_descriptor->base_sector,
-		ptr_descriptor->cnt_sectors);
+	printk("base: %d, end: %d, cnt: %d, rev_cnt: %d\n",
+		ptr_descriptor->base_sector,
+		ptr_descriptor->last_sector,
+		ptr_descriptor->cnt_sectors,
+		ptr_descriptor->rev_sectors);
 }
 
 
@@ -105,7 +121,8 @@ static void hddp_dev_open(struct ipc_msg_payload_hdd_part *param)
 	struct ipc_msg_payload_hdd *ptr_payload_hdd; /* HDD Driver Payload */
 	struct partition_table_entry main_part_table_buf[COUNT_M_PART_TABLE_ENTRY];
 	struct partition_table_entry logic_part_table_buf[COUNT_L_PART_TABLE_ENTRY];
-	struct hdd_partition_descriptor *ptr_last_part_descriptor;
+	struct hdd_partition_descriptor *ptr_last_mbr_part_descriptor;
+	struct hdd_partition_descriptor *ptr_last_logical_part_descriptor;
 	uint32 hdd_dev_num; /* hdd minor device number */
 	uint32 hdd_part_table_base; /* hdd_part_table base index */
 	uint32 extended_part_sector_offset; /* extended partition table offset in sectors */
@@ -113,8 +130,12 @@ static void hddp_dev_open(struct ipc_msg_payload_hdd_part *param)
 	rtc ret;
 	uint32 i, j;
 
-	hdd_dev_num = HDDP_GET_MBR_NUM(param->dev_num) / HDDP_MBR_FACTOR;
-	hdd_part_table_base = hdd_dev_num * HDDP_MBR_FACTOR;
+	/* Determine: primary master HDD / primary slave HDD */
+	hdd_dev_num = HDDP_GET_MBR_NUM(param->dev_num) / PART_MAX_PART_MBR;
+        /* Locate the base index of entry in HDD Partition Table */
+	hdd_part_table_base = hdd_dev_num * PART_MAX_PART_MBR;
+        /* Init. ptr_last_mbr_part_descriptor */
+	ptr_last_mbr_part_descriptor = NULL;
 	/* Send OPEN message to HDD driver */
 	msg.type = HDD_MSG_OPEN;
 	ptr_payload_hdd = (struct ipc_msg_payload_hdd *)msg.payload;
@@ -129,20 +150,25 @@ static void hddp_dev_open(struct ipc_msg_payload_hdd_part *param)
 
 	/* Process MBR partition table */
 	for (i = 0; i < COUNT_M_PART_TABLE_ENTRY; ++i) {
-		/* Check current raw partition table entry is empty */
+		/* Check current raw MBR partition table entry is empty */
 		if (0 == main_part_table_buf[i].type)
 			continue;
 
+		/* Process MBR partition table entry */
 		hddp_descriptor_init(
 			&hdd_part_table[i + hdd_part_table_base].main,
+			ptr_last_mbr_part_descriptor,
 			&main_part_table_buf[i],
 			0
 			);
 
 		/* Check current MBR partition is EXTENDED partition */
 		if (PART_TYPE_EXTENDED !=
-			hdd_part_table[i + hdd_part_table_base].main.type)
+			hdd_part_table[i + hdd_part_table_base].main.type) {
+			/* Update pointer of last MBR partition descriptor */
+			ptr_last_mbr_part_descriptor = &hdd_part_table[i + hdd_part_table_base].main;
 			continue;
+		}
 
 		/* Continue to process logical partitions */
 		extended_part_sector_offset =
@@ -156,21 +182,25 @@ static void hddp_dev_open(struct ipc_msg_payload_hdd_part *param)
 				PARTITION_TABLE_ENTRY_SIZE * COUNT_L_PART_TABLE_ENTRY,
 				logic_part_table_buf);
 
-		/* Check current raw partition table entry is empty */
-		if (0 == logic_part_table_buf[0].type)
+		/* Check current raw logical partition table entry is empty */
+		if (0 == logic_part_table_buf[0].type) {
+			/* Update pointer of last MBR partition descriptor */
+			ptr_last_mbr_part_descriptor = &hdd_part_table[i + hdd_part_table_base].main;
 			continue;
+		}
 
-		/* Process this partition table entry */
+		/* Process logical partition table entry */
 		j = 0;
 		hddp_descriptor_init(
 			&hdd_part_table[i + hdd_part_table_base].logicals[j],
+			ptr_last_mbr_part_descriptor,
 			&logic_part_table_buf[0],
 			extended_part_sector_offset
 			);
 
 		/* Check next logical partition table */
 		while (PART_TYPE_EXTENDED == logic_part_table_buf[1].type) {
-			ptr_last_part_descriptor = &hdd_part_table[i + hdd_part_table_base].logicals[j];
+			ptr_last_logical_part_descriptor = &hdd_part_table[i + hdd_part_table_base].logicals[j];
 			/* Read next logical partition table */
 			ret = hdd_read(
 				hdd_dev_num,
@@ -188,11 +218,14 @@ static void hddp_dev_open(struct ipc_msg_payload_hdd_part *param)
 			++j;
 			hddp_descriptor_init(
 				&hdd_part_table[i + hdd_part_table_base].logicals[j],
+				ptr_last_logical_part_descriptor,
 				&logic_part_table_buf[0],
-				ptr_last_part_descriptor->base_sector
-				+ ptr_last_part_descriptor->cnt_sectors
+				ptr_last_logical_part_descriptor->base_sector
+					+ ptr_last_logical_part_descriptor->cnt_sectors
 			);
 		}
+		/* Update pointer of last MBR partition descriptor */
+		ptr_last_mbr_part_descriptor = &hdd_part_table[i + hdd_part_table_base].main;
 	}
 }
 

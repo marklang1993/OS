@@ -39,7 +39,7 @@ private:
      @ isExtend : display extended partition or not
      */
     void print(
-        partition_table_entry* const pTable,
+        const partition_table_entry* const pTable,
         UINT32* pOffset,
         UINT32 count,
         bool isExtend
