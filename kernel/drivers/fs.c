@@ -55,9 +55,9 @@ void fs_message_dispatcher(void)
 */
 	struct proc_msg msg;
 	struct ipc_msg_payload_hdd_part *payload;
+	payload = (struct ipc_msg_payload_hdd_part *)msg.payload;
 
 	msg.type = HDDP_MSG_OPEN;
-	payload = (struct ipc_msg_payload_hdd_part *)msg.payload;
 	payload->dev_num = HDDP_DEV_NUM_GEN(0, 0);
 	comm_msg(DRV_PID_HDDP, &msg);
 

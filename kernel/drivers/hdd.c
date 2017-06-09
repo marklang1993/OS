@@ -548,6 +548,8 @@ void hdd_init(void)
 
 	if (0 == cnt_hdd) {
 		panic("NO HARDDISK DRIVE FOUND!");
+	} else if (cnt_hdd > HDD_MAX_DRIVES) {
+		panic("MORE THAN %d HARDDISK DRIVES!", cnt_hdd);
 	}
 
 	/* Init. harddisk interrupt */

@@ -19,7 +19,7 @@
 
 /* Process status */
 typedef uint32 PROC_STATUS;
-#define PROC_UNINIT		0	/* Empty - Can init.*/
+#define PROC_UNINIT		0	/* Empty - Can init. */
 #define PROC_RUNNABLE		1	/* Wait for scheduler */
 #define PROC_RUNNING		2	/* Active */
 #define PROC_SENDING		3	/* Sending message - Blocked */
@@ -28,10 +28,10 @@ typedef uint32 PROC_STATUS;
 #define PROC_SLEEP		6	/* Sleep - Blocked */
 #define PROC_DEAD		7	/* Dead - Can init. */
 
-/* Process Stack Frame - Kernel & User*/
+/* Process Stack Frame - Kernel & User */
 struct process_stack_frame
 {
-/* Low Address --- Pushed later*/
+/* Low Address --- Pushed later */
 	uint32 gs;
 	uint32 fs;
 	uint32 es;

@@ -15,6 +15,8 @@
 #define HDDP_MSG_CLOSE           IPC_MSG_TYPE_GEN(HDDP_MAGIC_NUM, DRV_PID_HDDP, 13)
 
 /*
+ * HDD Partition Device Number -- Minor Device Number
+ *
  * Current supported hdd devices:
  *
  * HDD_DEV_PM

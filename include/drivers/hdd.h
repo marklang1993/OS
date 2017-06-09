@@ -5,6 +5,8 @@
 #include "proc.h"
 
 /*
+ * HDD Minor Device Number:
+ *
  * Current supported hdd devices:
  * hd0 : primary & master hdd
  * hd1 : primary & slave hdd
