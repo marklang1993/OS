@@ -129,14 +129,14 @@ static void calculate_hdd_base(
 		/* Non-reserved sectors */
 		base_addr = ((uint64)ptr_descriptor->base_sector) * HDD_BYTES_PER_SECTOR;
 	}
+	base_addr += param->base_low;
+	base_addr += ((uint64)param->base_high) << 32;
 	limit_addr = ((uint64)(ptr_descriptor->last_sector + 1)) * HDD_BYTES_PER_SECTOR;
 
 	/* Check the end address of operating */
 	if (0 == param->size)
 		panic("HDDP: OPEARTION SIZE IS 0!");
 	end_addr = base_addr;
-	end_addr += param->base_low;
-	end_addr += ((uint64)param->base_high) << 32;
 	end_addr += (param->size - 1);
 	if (end_addr >= limit_addr)
 		panic("HDDP: OPEARTION OUT OF BOUND!");

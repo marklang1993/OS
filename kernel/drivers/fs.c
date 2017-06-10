@@ -55,7 +55,11 @@ void fs_message_dispatcher(void)
 
 	struct proc_msg msg;
 	struct ipc_msg_payload_hdd_part *payload;
+	uint8 data[0xa00];
+	uint32 i;
+
 	payload = (struct ipc_msg_payload_hdd_part *)msg.payload;
+	memset(data, 0x0, 0xa00);
 
 	msg.type = HDDP_MSG_OPEN;
 	payload->dev_num = HDDP_DEV_NUM_GEN(0, 0);
@@ -68,13 +72,30 @@ void fs_message_dispatcher(void)
 	msg.type = HDDP_MSG_WRITE;
 	payload->dev_num = HDDP_DEV_NUM_GEN(0, 0);
 	payload->is_reserved = FALSE;
-	payload->base_low = 0;
+	payload->base_low = 0x40;
 	payload->base_high = 0;
 	payload->size = 10240;
 	payload->buf_address = (void *)0x50400;
 	comm_msg(DRV_PID_HDDP, &msg);
+/*
+	msg.type = HDDP_MSG_READ;
+	payload->dev_num = HDDP_DEV_NUM_GEN(0, 0);
+	payload->is_reserved = FALSE;
+	payload->base_low = 0x20;
+	payload->base_high = 0;
+	payload->size = 0x400;
+	payload->buf_address = data;
+	comm_msg(DRV_PID_HDDP, &msg);
 
-	printk("Write Finished!\n");
+	printk("Data:");
+	for (i = 0x3d0; i < 0x410; ++i) {
+		if (i % 16 == 0) {
+			printk("\nROW:%x  ", i/16);
+		}
+		printk("%x ", data[i]);
+	}
+*/
+	printk("\nOperation Finished!\n");
 
         while(1);
 }
