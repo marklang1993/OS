@@ -50,6 +50,12 @@
 #define HDDP_GET_MBR_NUM(dev_number) \
 	((dev_number & 0xff00) >> 8)
 
+/*
+ # Get logical partition index from HDD Partition Device Number
+ @ dev_number : HDD Partition Device Number
+ */
+#define HDDP_GET_LOGICAL_NUM(dev_number) \
+	(dev_number & 0xff)
 
 
 /* Harddisk Partition Driver Message Payload */
@@ -57,6 +63,8 @@ struct ipc_msg_payload_hdd_part
 {
 	/* Minor device number */
 	uint32 dev_num;
+	/* Is opeartion on reserved sectors */
+	BOOL is_reserved;
 	/* Base address w.r.t PARTITION base address */
 	uint32 base_low;
 	uint32 base_high;

@@ -1,10 +1,13 @@
 # Makefile for OS #
 
 # Build Target
-OBJECTS = kernel_asm.o kernel_c.o proc.o interrupt_asm.o interrupt_c.o syscall_asm.o syscall_c.o ipc.o
+K_OBJECTS = kernel_asm.o kernel_c.o proc.o interrupt_asm.o interrupt_c.o syscall_asm.o syscall_c.o ipc.o
 LIB_OBJECTS = dbg.o kheap.o memory.o buffer.o print.o printk.o io_port.o
 DRV_OBJECTS = i8259a.o i8253.o keyboard.o vga.o tty.o hdd.o hdd_part.o fs.o
-TARGET = boot.bin loader.bin kernel.bin
+OBJECTS = $(K_OBJECTS) $(LIB_OBJECTS) $(DRV_OBJECTS) 
+
+TARGET_BOOT = boot.bin
+TARGET = loader.bin kernel.bin
 TARGET_IMG = boot.img
 
 UTILITIES = partition
@@ -31,10 +34,9 @@ LINKER_FLAGS = -m elf_i386 -Ttext 0x50400
 .PHONY : all clean
 
 # Start Position
-all : $(OBJECTS) $(LIB_OBJECTS) $(DRV_OBJECTS) $(TARGET) $(TARGET_IMG)
+all : $(OBJECTS) $(TARGET_BOOT) $(TARGET) $(TARGET_IMG)
 	   sudo mount -o loop $(TARGET_IMG) /mnt/floppy
-	   sudo cp loader.bin /mnt/floppy/
-	   sudo cp kernel.bin /mnt/floppy/ 
+	   sudo cp $(TARGET) /mnt/floppy/ 
 	   sudo umount /mnt/floppy
 
 utility : $(UTILITIES)
@@ -42,10 +44,9 @@ utility : $(UTILITIES)
 run : 
 	   $(MACHINE) -f bochsrc
 clean : 
+	   rm -f $(TARGET_BOOT)
 	   rm -f $(TARGET)
 	   rm -f $(OBJECTS)
-	   rm -f $(LIB_OBJECTS)
-	   rm -f $(DRV_OBJECTS)
 	   rm -f $(TARGET_IMG)
 	   rm -f $(UTILITIES)
 
@@ -124,10 +125,10 @@ boot.bin : 	boot/boot.asm
 loader.bin : 	boot/loader.asm
 		$(ASM) $(ASM_FLAGS) -o $@ $<
 
-kernel.bin :
-		$(LINKER) $(LINKER_FLAGS) -o $@ $(OBJECTS) $(LIB_OBJECTS) $(DRV_OBJECTS)
+kernel.bin :	$(OBJECTS)
+		$(LINKER) $(LINKER_FLAGS) -o $@ $^
 
-boot.img : 	boot.bin
+boot.img : 	$(TARGET_BOOT)
 		$(IMG) if=/dev/zero of=$(TARGET_IMG) $(DISK_IMG_FLAGS)
 		$(IMG_FORMAT) -F 12 -v $(TARGET_IMG) 
 		$(IMG) if=$< of=$(TARGET_IMG) $(BOOT_IMG_FLAGS)

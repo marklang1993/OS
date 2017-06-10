@@ -205,7 +205,7 @@ static rtc hdd_wait_busy(void)
  # HDD send command
  @ ptr_hdd_ctrl: pointer to a hdd_ctrl_regs struct
  */
-static void hdd_send_cmd(struct hdd_ctrl_regs *ptr_hdd_ctrl)
+static void hdd_send_cmd(const struct hdd_ctrl_regs *ptr_hdd_ctrl)
 {
 	if (hdd_wait_busy() != OK)
 		panic("HDD TIME OUT!");
@@ -227,7 +227,7 @@ static void hdd_send_cmd(struct hdd_ctrl_regs *ptr_hdd_ctrl)
 /*
  # HDD_OPEN message handler
  */
-static void hdd_dev_open(struct ipc_msg_payload_hdd *param)
+static void hdd_dev_open(const struct ipc_msg_payload_hdd *param)
 {
 	struct hdd_ctrl_regs ctrl_regs;
 	uint16 buf[HDD_BYTES_PER_SECTOR / 2];	/* Store raw identify data */
@@ -284,7 +284,7 @@ static void hdd_dev_open(struct ipc_msg_payload_hdd *param)
  @ param   : sector read / write parameters
  @ is_read : is HDD_READ flag
  */
-static void hdd_dev_sector_op(struct hdd_sector_param *param, BOOL is_read)
+static void hdd_dev_sector_op(const struct hdd_sector_param *param, BOOL is_read)
 {
 	struct hdd_ctrl_regs ctrl_regs;
 	union hdd_status_reg status;
@@ -374,7 +374,7 @@ static void hdd_dev_sector_op(struct hdd_sector_param *param, BOOL is_read)
  @ param   : HDD_READ / HDD_WRITE ipc message payload
  @ is_read : is HDD_READ flag
  */
-static void hdd_dev_data_op(struct ipc_msg_payload_hdd *param, BOOL is_read)
+static void hdd_dev_data_op(const struct ipc_msg_payload_hdd *param, BOOL is_read)
 {
 	/* Bytes related position */
 	uint64 base_pos, limit_pos;
@@ -589,19 +589,19 @@ void hdd_message_dispatcher(void)
 		/* Check message type */
 		switch(msg.type) {
 		case HDD_MSG_OPEN:
-			hdd_dev_open((struct ipc_msg_payload_hdd *)msg.payload);
+			hdd_dev_open((const struct ipc_msg_payload_hdd *)msg.payload);
 			break;
 
 		case HDD_MSG_WRITE:
 			hdd_dev_data_op(
-				(struct ipc_msg_payload_hdd *)msg.payload,
+				(const struct ipc_msg_payload_hdd *)msg.payload,
 				FALSE
 				);
 			break;
 
 		case HDD_MSG_READ:
 			hdd_dev_data_op(
-				(struct ipc_msg_payload_hdd *)msg.payload,
+				(const struct ipc_msg_payload_hdd *)msg.payload,
 				TRUE
 				);
 			break;

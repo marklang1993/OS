@@ -68,23 +68,100 @@ static void hddp_descriptor_init(
 		ptr_descriptor->rev_sectors = ptr_descriptor->base_sector - 0;
 	}
 
+	/* Output partition descriptor information */
+/*	printk("base: %d, end: %d, cnt: %d, rev_cnt: %d\n",
+		ptr_descriptor->base_sector,
+		ptr_descriptor->last_sector,
+		ptr_descriptor->cnt_sectors,
+		ptr_descriptor->rev_sectors);
+*/
+}
+
+
+/*
+ # Calculate HDD base address
+ @ param    : hdd partition parameters
+ @ ptr_base : pointer to result of calculated base address
+ */
+static void calculate_hdd_base(
+	const struct ipc_msg_payload_hdd_part *param,
+	uint64 *ptr_base
+)
+{
+	uint32 hddp_mbr_index; /* hdd partition mbr index */
+	uint32 hddp_logical_index; /* hdd partition logical index */
+	uint64 base_addr; /* Opeartion start address */
+	uint64 limit_addr; /* Upper limit on address */
+	uint64 end_addr; /* Opeartion end address */
+	const struct hdd_partition_descriptor *ptr_descriptor;
+
+	/* Get partition table index */
+	hddp_mbr_index = HDDP_GET_MBR_NUM(param->dev_num);
+	hddp_logical_index = HDDP_GET_LOGICAL_NUM(param->dev_num);
+
+	/* Validate */
+	if (hddp_mbr_index >= HDDP_MAX_MBR_P_CNT)
+		panic("HDDP: MBR INDEX OUT OF BOUND!");
+	if (hddp_logical_index > PART_MAX_L_PER_EX_PART) /* valid range of logical index is 0~16 */
+		panic("HDDP: LOGICAL INDEX OUT OF BOUND!");
+
+	/* Get hdd partition descriptor */
+	if (0 == hddp_logical_index) {
+		/* Not a logical partition */
+		ptr_descriptor = &(hdd_part_table[hddp_mbr_index].main);
+	} else {
+		/* Logical partition */
+		ptr_descriptor = &(hdd_part_table[hddp_mbr_index].logicals[hddp_logical_index]);
+	}
+
+	/* Check hdd partition type */
+	if (ptr_descriptor->type == PART_TYPE_NULL)
+		panic("HDDP: NULL PARTITION!");
+	if (ptr_descriptor->type == PART_TYPE_EXTENDED)
+		panic("HDDP: EXTENDED PARTITION IS NOT SUPPORTED!");
+
+	/* Calculate base address & limit address */
+	if (param->is_reserved) {
+		/* Reserved sectors */
+		base_addr = ((uint64)(ptr_descriptor->base_sector
+			- ptr_descriptor->rev_sectors)) * HDD_BYTES_PER_SECTOR;
+	} else {
+		/* Non-reserved sectors */
+		base_addr = ((uint64)ptr_descriptor->base_sector) * HDD_BYTES_PER_SECTOR;
+	}
+	limit_addr = ((uint64)(ptr_descriptor->last_sector + 1)) * HDD_BYTES_PER_SECTOR;
+
+	/* Check the end address of operating */
+	if (0 == param->size)
+		panic("HDDP: OPEARTION SIZE IS 0!");
+	end_addr = base_addr;
+	end_addr += param->base_low;
+	end_addr += ((uint64)param->base_high) << 32;
+	end_addr += (param->size - 1);
+	if (end_addr >= limit_addr)
+		panic("HDDP: OPEARTION OUT OF BOUND!");
+
+	/* Output partition descriptor information */
 	printk("base: %d, end: %d, cnt: %d, rev_cnt: %d\n",
 		ptr_descriptor->base_sector,
 		ptr_descriptor->last_sector,
 		ptr_descriptor->cnt_sectors,
 		ptr_descriptor->rev_sectors);
+
 }
 
 
 /*
- # HDD read bytes
+ # HDD opeartion in bytes
  @ hdd_dev_num : hdd minor device number
+ @ is_read     : is read opeartion
  @ pos         : base address
- @ size        : size of bytes read
+ @ size        : size of bytes read / write
  @ buf         : buffer address
  */
-static rtc hdd_read(
+static rtc hdd_op(
 	uint32 hdd_dev_num,
+	BOOL is_read,
 	uint64 pos,
 	uint32 size,
 	void *buf
@@ -93,8 +170,12 @@ static rtc hdd_read(
 	struct proc_msg msg;
 	struct ipc_msg_payload_hdd *ptr_payload_hdd; /* HDD Driver Payload */
 
+	/* Check */
+	if (hdd_dev_num > HDD_DEV_PS)
+		panic("HDDP: SECONDARY IDE IS NOT SUPPORTED!");
+
 	/* Send READ message to HDD driver */
-	msg.type = HDD_MSG_READ;
+	msg.type = IS_TRUE(is_read) ? HDD_MSG_READ : HDD_MSG_WRITE;
 	ptr_payload_hdd = (struct ipc_msg_payload_hdd *)msg.payload;
 	ptr_payload_hdd->dev_num = hdd_dev_num;
 	ptr_payload_hdd->base_low = (uint32)(pos & 0xffffffffull);
@@ -104,8 +185,13 @@ static rtc hdd_read(
 
 	comm_msg(DRV_PID_HDD, &msg);
 	/* Check result */
-	if (HDD_MSG_ERROR == msg.type)
-		panic("HDDP: HDD READ ERROR!");
+	if (HDD_MSG_ERROR == msg.type) {
+		if (is_read) {
+			panic("HDDP: HDD READ ERROR!");
+		} else {
+			panic("HDDP: HDD WRITE ERROR!");
+		}
+	}
 
 	return OK;
 }
@@ -115,7 +201,7 @@ static rtc hdd_read(
  # HDDP_OPEN message handler
  @ param : hdd partition open parameters
  */
-static void hddp_dev_open(struct ipc_msg_payload_hdd_part *param)
+static void hddp_dev_open(const struct ipc_msg_payload_hdd_part *param)
 {
 	struct proc_msg msg;
 	struct ipc_msg_payload_hdd *ptr_payload_hdd; /* HDD Driver Payload */
@@ -143,10 +229,13 @@ static void hddp_dev_open(struct ipc_msg_payload_hdd_part *param)
 	comm_msg(DRV_PID_HDD, &msg);
 
 	/* Read MBR partition table */
-	ret = hdd_read(hdd_dev_num,
-			BASE_PARTITION_TABLE,
-			PARTITION_TABLE_ENTRY_SIZE * COUNT_M_PART_TABLE_ENTRY,
-			main_part_table_buf);
+	ret = hdd_op(
+		hdd_dev_num,
+		TRUE,
+		BASE_PARTITION_TABLE,
+		PARTITION_TABLE_ENTRY_SIZE * COUNT_M_PART_TABLE_ENTRY,
+		main_part_table_buf
+		);
 
 	/* Process MBR partition table */
 	for (i = 0; i < COUNT_M_PART_TABLE_ENTRY; ++i) {
@@ -177,10 +266,13 @@ static void hddp_dev_open(struct ipc_msg_payload_hdd_part *param)
 					HDD_BYTES_PER_SECTOR +
 					BASE_PARTITION_TABLE;
 		/* Read partition table entry of 1st logical partition */
-		ret = hdd_read(hdd_dev_num,
-				extended_part_offset,
-				PARTITION_TABLE_ENTRY_SIZE * COUNT_L_PART_TABLE_ENTRY,
-				logic_part_table_buf);
+		ret = hdd_op(
+			hdd_dev_num,
+			TRUE,
+			extended_part_offset,
+			PARTITION_TABLE_ENTRY_SIZE * COUNT_L_PART_TABLE_ENTRY,
+			logic_part_table_buf
+			);
 
 		/* Check current raw logical partition table entry is empty */
 		if (0 == logic_part_table_buf[0].type) {
@@ -202,8 +294,9 @@ static void hddp_dev_open(struct ipc_msg_payload_hdd_part *param)
 		while (PART_TYPE_EXTENDED == logic_part_table_buf[1].type) {
 			ptr_last_logical_part_descriptor = &hdd_part_table[i + hdd_part_table_base].logicals[j];
 			/* Read next logical partition table */
-			ret = hdd_read(
+			ret = hdd_op(
 				hdd_dev_num,
+				TRUE,
 				extended_part_offset
 				+ logic_part_table_buf[1].base_sector_lba
 				* HDD_BYTES_PER_SECTOR,
@@ -257,10 +350,11 @@ void hddp_message_dispatcher(void)
 		/* Check message type */
 		switch(msg.type) {
 		case HDDP_MSG_OPEN:
-			hddp_dev_open((struct ipc_msg_payload_hdd_part *)msg.payload);
+			hddp_dev_open((const struct ipc_msg_payload_hdd_part *)msg.payload);
 			break;
 
 		case HDDP_MSG_WRITE:
+			calculate_hdd_base((const struct ipc_msg_payload_hdd_part *)msg.payload, NULL);
 			break;
 
 		case HDDP_MSG_READ:

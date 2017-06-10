@@ -65,5 +65,13 @@ void fs_message_dispatcher(void)
 	payload->dev_num = HDDP_DEV_NUM_GEN(4, 'a');
 	comm_msg(DRV_PID_HDDP, &msg);
 
+	msg.type = HDDP_MSG_WRITE;
+	payload->dev_num = HDDP_DEV_NUM_GEN(1, 'a');
+	payload->is_reserved = TRUE;
+	payload->base_low = 0;
+	payload->base_high = 0;
+	payload->size = 10486272 + 2048 * 512;
+	comm_msg(DRV_PID_HDDP, &msg);
+
         while(1);
 }

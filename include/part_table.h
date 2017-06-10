@@ -10,6 +10,8 @@
 #define PART_MAX_L_PER_EX_PART		16			/* Maximum logical partitions per extended partition */
 #define COUNT_M_PART_TABLE_ENTRY	PART_MAX_PART_MBR	/* Count of MBR partition table entries */
 #define COUNT_L_PART_TABLE_ENTRY	2			/* Count of logic partition table entries */
+
+#define PART_TYPE_NULL			0x0			/* Type of invalid (null) partition */
 #define PART_TYPE_EXTENDED		0x5			/* Type of extended partition */
 
 /* Bootable value mask */
