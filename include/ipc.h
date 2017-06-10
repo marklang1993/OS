@@ -19,7 +19,7 @@ typedef uint32 IPC_MSG_TYPE;
 	(((magic_num & 0xff) << 24) | ((pid & 0xffff) << 8) | (type & 0xff))
 
 /* IPC message */
-#define IPC_MSG_PAYLOAD_CNT	5
+#define IPC_MSG_PAYLOAD_CNT	6
 
 struct proc_msg
 {

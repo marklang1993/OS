@@ -141,13 +141,15 @@ static void calculate_hdd_base(
 	if (end_addr >= limit_addr)
 		panic("HDDP: OPEARTION OUT OF BOUND!");
 
+	/* Return base address */
+	*ptr_base = base_addr;
+
 	/* Output partition descriptor information */
 	printk("base: %d, end: %d, cnt: %d, rev_cnt: %d\n",
 		ptr_descriptor->base_sector,
 		ptr_descriptor->last_sector,
 		ptr_descriptor->cnt_sectors,
 		ptr_descriptor->rev_sectors);
-
 }
 
 
@@ -194,6 +196,38 @@ static rtc hdd_op(
 	}
 
 	return OK;
+}
+
+
+/*
+ # HDDP_READ / HDDP_WRITE message handler
+ @ param   : hdd partition opeartion parameters
+ @ is_read : is read opeartion
+ */
+static void hddp_dev_op(const struct ipc_msg_payload_hdd_part *param, BOOL is_read)
+{
+	uint64 hdd_base_address;
+	uint32 hdd_dev_num; /* hdd minor device number */
+	rtc ret;
+
+	/* Determine: primary master HDD / primary slave HDD */
+	hdd_dev_num = HDDP_GET_MBR_NUM(param->dev_num) / PART_MAX_PART_MBR;
+
+	/* Calculate hdd base address */
+	calculate_hdd_base(param, &hdd_base_address);
+
+	/* Execute operation on HDD */
+	ret = hdd_op(
+		hdd_dev_num,
+		is_read,
+		hdd_base_address,
+		param->size,
+		param->buf_address
+	);
+
+	/* Check the result */
+	if (ret != OK)
+		panic("HDDP: DEVICE OPERATION FAILED!");
 }
 
 
@@ -354,10 +388,11 @@ void hddp_message_dispatcher(void)
 			break;
 
 		case HDDP_MSG_WRITE:
-			calculate_hdd_base((const struct ipc_msg_payload_hdd_part *)msg.payload, NULL);
+			hddp_dev_op((const struct ipc_msg_payload_hdd_part *)msg.payload, FALSE);
 			break;
 
 		case HDDP_MSG_READ:
+			hddp_dev_op((const struct ipc_msg_payload_hdd_part *)msg.payload, TRUE);
 			break;
 
 		case HDDP_MSG_CLOSE:

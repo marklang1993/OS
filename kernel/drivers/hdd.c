@@ -401,7 +401,7 @@ static void hdd_dev_data_op(const struct ipc_msg_payload_hdd *param, BOOL is_rea
 	base_pos += param->base_low;
 	kassert(base_pos < HDD_LBA28_BYTE_MAX); /* Check for LBA28 maximum byte position */
 	limit_pos = base_pos + param->size;
-	kassert(base_pos < limit_pos); /* Check for overflow */
+	kassert(base_pos < limit_pos); /* Check for overflow in addition of uint64 */
 	kassert(limit_pos < HDD_LBA28_BYTE_MAX); /* Check for LBA28 maximum byte position */
 
 	/* Calculate start & end offsets */
@@ -460,7 +460,7 @@ static void hdd_dev_data_op(const struct ipc_msg_payload_hdd *param, BOOL is_rea
 		}
 
 	} else {
-		/* 1. Prepare for read 1st sector */
+		/* 1. Prepare for operation on the 1st sector */
 		sector_param.pos = base_sector;
 		sector_param.count = 1;
 		sector_param.buf_address = p_buf;
@@ -489,7 +489,7 @@ static void hdd_dev_data_op(const struct ipc_msg_payload_hdd *param, BOOL is_rea
 		kassert(!ENABLE_SPLIT_KUSPACE);
 		p_target += HDD_BYTES_PER_SECTOR - start_pos;
 
-		/* 2. Prepare for read remained sectors, other than last sector */
+		/* 2. Prepare for operation on remained sectors, other than last sector */
 		if (cnt_sectors > 1) {
 			sector_param.pos = base_sector;
 			sector_param.count = cnt_sectors - 1;
@@ -510,7 +510,7 @@ static void hdd_dev_data_op(const struct ipc_msg_payload_hdd *param, BOOL is_rea
 			cnt_sectors = 1;
 		}
 
-		/* 3. Prepare for read last sector */
+		/* 3. Prepare for operation on the last sector */
 		kassert(cnt_sectors == 1);
 		sector_param.pos = base_sector;
 		sector_param.count = 1;
@@ -520,15 +520,33 @@ static void hdd_dev_data_op(const struct ipc_msg_payload_hdd *param, BOOL is_rea
 		/* Determine READ or WRITE */
 		if (IS_TRUE(is_read)) {
 			/* READ - Return data */
-			COPY_BUF(p_target,
-				p_buf,
-				cnt_bytes_left);
+			if (0 == cnt_bytes_left) {
+                                /* Copy an entire sector */
+				COPY_BUF(p_target,
+					p_buf,
+					HDD_BYTES_PER_SECTOR);
+
+			} else {
+				/* Copy the remained bytes */
+				COPY_BUF(p_target,
+					p_buf,
+					cnt_bytes_left);
+			}
 
 		} else {
 			/* WRITE - Directly overwrite on the buffer */
-			COPY_BUF(p_buf,
-				p_target,
-				cnt_bytes_left);
+			if (0 == cnt_bytes_left) {
+                                /* Copy an entire sector */
+				COPY_BUF(p_buf,
+					p_target,
+					HDD_BYTES_PER_SECTOR);
+
+			} else {
+				/* Copy the remained bytes */
+				COPY_BUF(p_buf,
+					p_target,
+					cnt_bytes_left);
+			}
 			/* Write back */
 			hdd_dev_sector_op(&sector_param, FALSE);
 		}

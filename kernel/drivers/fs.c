@@ -23,28 +23,27 @@ void fs_message_dispatcher(void)
         comm_msg(DRV_PID_HDD, &msg);
 
 	msg.type = HDD_MSG_WRITE;
-	memset(data, 0xbb, 0xa00);
+	memset(data, 0xd3, 0xa00);
 	payload = (struct ipc_msg_payload_hdd *)msg.payload;
 	payload->dev_num = HDD_DEV_PM;
-	payload->base_low = 0x3f0;
+	payload->base_low = 0x100000;
 	payload->base_high = 0x0;
-	payload->size = 0x16;
+	payload->size = 32;
 	payload->buf_address = data;
 	comm_msg(DRV_PID_HDD, &msg);
-
 
 	msg.type = HDD_MSG_READ;
 	memset(data, 0x0, 0xa00);
 	payload = (struct ipc_msg_payload_hdd *)msg.payload;
-	payload->dev_num = HDD_DEV_PS;
-	payload->base_low = 0x3f0;
+	payload->dev_num = HDD_DEV_PM;
+	payload->base_low = 0x1053f0;
 	payload->base_high = 0;
-	payload->size = 0x20;
+	payload->size = 32;
 	payload->buf_address = data;
 	comm_msg(DRV_PID_HDD, &msg);
 
 	printk("Data:");
-	for (i = 0; i < 0x400; ++i) {
+	for (i = 0; i < 0x30; ++i) {
 		if (i % 16 == 0) {
 			printk("\nROW:%x  ", i/16);
 		}
@@ -53,6 +52,7 @@ void fs_message_dispatcher(void)
 
 	printk("\nContinue to run fs.c\n");
 */
+
 	struct proc_msg msg;
 	struct ipc_msg_payload_hdd_part *payload;
 	payload = (struct ipc_msg_payload_hdd_part *)msg.payload;
@@ -66,12 +66,15 @@ void fs_message_dispatcher(void)
 	comm_msg(DRV_PID_HDDP, &msg);
 
 	msg.type = HDDP_MSG_WRITE;
-	payload->dev_num = HDDP_DEV_NUM_GEN(1, 'a');
-	payload->is_reserved = TRUE;
+	payload->dev_num = HDDP_DEV_NUM_GEN(0, 0);
+	payload->is_reserved = FALSE;
 	payload->base_low = 0;
 	payload->base_high = 0;
-	payload->size = 10486272 + 2048 * 512;
+	payload->size = 10240;
+	payload->buf_address = (void *)0x50400;
 	comm_msg(DRV_PID_HDDP, &msg);
+
+	printk("Write Finished!\n");
 
         while(1);
 }
