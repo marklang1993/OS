@@ -69,12 +69,11 @@ static void hddp_descriptor_init(
 	}
 
 	/* Output partition descriptor information */
-/*	printk("base: %d, end: %d, cnt: %d, rev_cnt: %d\n",
+	printk("base: %d, end: %d, cnt: %d, rev_cnt: %d\n",
 		ptr_descriptor->base_sector,
 		ptr_descriptor->last_sector,
 		ptr_descriptor->cnt_sectors,
 		ptr_descriptor->rev_sectors);
-*/
 }
 
 
@@ -259,6 +258,13 @@ static void hddp_dev_open(const struct ipc_msg_payload_hdd_part *param)
 	/* Send OPEN message to HDD driver */
 	msg.type = HDD_MSG_OPEN;
 	ptr_payload_hdd = (struct ipc_msg_payload_hdd *)msg.payload;
+	ptr_payload_hdd->dev_num = hdd_dev_num;
+	comm_msg(DRV_PID_HDD, &msg);
+
+	/* Send IOCTL - PRINT_ID message to HDD driver */
+	msg.type = HDD_MSG_IOCTL;
+	ptr_payload_hdd = (struct ipc_msg_payload_hdd *)msg.payload;
+	ptr_payload_hdd->ioctl_msg = HDD_IMSG_PRINT_ID;
 	ptr_payload_hdd->dev_num = hdd_dev_num;
 	comm_msg(DRV_PID_HDD, &msg);
 

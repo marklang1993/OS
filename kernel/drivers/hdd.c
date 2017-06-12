@@ -8,6 +8,12 @@
 	kassert(!ENABLE_SPLIT_KUSPACE); \
 	memcpy((void *)(dst), (void *)(src), size)
 
+#define PRE_DEV_USE \
+	dev_num = param->dev_num; \
+	ptr_descriptor = &hdd_descriptors[dev_num]; \
+	if (ptr_descriptor->ref_cnt == 0) \
+		panic("HDD %d DOES NOT OPEN!\n", dev_num)
+
 
 /* ATA Channel */
 #define IDE_CH_IS_PRIMARY		1	/* Only Primary IDE channel is supported */
@@ -232,6 +238,7 @@ static void hdd_send_cmd(const struct hdd_ctrl_regs *ptr_hdd_ctrl)
 
 /*
  # HDD_OPEN message handler
+ @ param   : HDD_OPEN ipc message payload
  */
 static void hdd_dev_open(const struct ipc_msg_payload_hdd *param)
 {
@@ -239,10 +246,6 @@ static void hdd_dev_open(const struct ipc_msg_payload_hdd *param)
 	struct hdd_descriptor *ptr_descriptor;
 	struct hdd_ctrl_regs ctrl_regs;
 	uint16 buf[HDD_BYTES_PER_SECTOR / 2];	/* Store raw identify data */
-
-	uint32 capacities;
-	char str_yes[] = "YES";
-	char str_no[] = "NO";
 
 	/* Get hdd descriptor and check */
 	dev_num = param->dev_num;
@@ -278,27 +281,8 @@ static void hdd_dev_open(const struct ipc_msg_payload_hdd *param)
 	ata_id_str_process(
 		ptr_descriptor->id_info.serial_number,
 		sizeof(ptr_descriptor->id_info.serial_number));
-	printk("HDD S/N: %s\n", ptr_descriptor->id_info.serial_number);
-
 	ata_id_str_process(ptr_descriptor->id_info.model_number,
 		sizeof(ptr_descriptor->id_info.model_number));
-	printk("HDD MODEL: %s\n", ptr_descriptor->id_info.model_number);
-
-	printk("C/H/S: %u/%u/%u\n",
-		ptr_descriptor->id_info.cnt_cylinders,
-		ptr_descriptor->id_info.cnt_headers,
-		ptr_descriptor->id_info.cnt_sectors);
-	capacities = ptr_descriptor->id_info.cnt_addressable_sectors
-			* HDD_BYTES_PER_SECTOR / 1000000;
-	printk("Capacities: %u MB\n", capacities);
-
-	printk("DMA: %s\t",
-		ptr_descriptor->id_info.capabilities.is_DMA_sup == 1 ?
-		str_yes : str_no);
-
-	printk("LBA: %s\n",
-		ptr_descriptor->id_info.capabilities.is_LBA_sup == 1 ?
-		str_yes : str_no);
 
 	/* Increase reference count */
 	ptr_descriptor->ref_cnt += 1;
@@ -307,6 +291,7 @@ static void hdd_dev_open(const struct ipc_msg_payload_hdd *param)
 
 /*
  # HDD_CLOSE message handler
+ @ param   : HDD_CLOSE ipc message payload
  */
 static void hdd_dev_close(const struct ipc_msg_payload_hdd *param)
 {
@@ -314,13 +299,67 @@ static void hdd_dev_close(const struct ipc_msg_payload_hdd *param)
 	struct hdd_descriptor *ptr_descriptor;
 
 	/* Get hdd descriptor and check */
-	dev_num = param->dev_num;
-	ptr_descriptor = &hdd_descriptors[dev_num];
-	if (ptr_descriptor->ref_cnt == 0)
-		panic("HDD %d DOES NOT OPEN!\n", dev_num);
+	PRE_DEV_USE;
 
 	/* Decrease reference count */
 	ptr_descriptor->ref_cnt -= 1;
+}
+
+
+/*
+ # Ioctl call handler - Print ATA identity infomation
+ @ ptr_descriptor: pointer to hdd descriptor
+ */
+static void hdd_ioctl_print_idinfo(const struct hdd_descriptor *ptr_descriptor)
+{
+	char str_yes[] = "YES";
+	char str_no[] = "NO";
+	uint32 capacity;
+
+	/* Print out ata identity infomation */
+	printk("HDD S/N: %s\n", ptr_descriptor->id_info.serial_number);
+
+	printk("C/H/S: %u/%u/%u\n",
+		ptr_descriptor->id_info.cnt_cylinders,
+		ptr_descriptor->id_info.cnt_headers,
+		ptr_descriptor->id_info.cnt_sectors);
+	capacity = ptr_descriptor->id_info.cnt_addressable_sectors
+			* HDD_BYTES_PER_SECTOR / 1000000;
+	printk("Capacity: %u MB\n", capacity);
+
+	printk("DMA: %s\t",
+		ptr_descriptor->id_info.capabilities.is_DMA_sup == 1 ?
+		str_yes : str_no);
+
+	printk("LBA: %s\n",
+		ptr_descriptor->id_info.capabilities.is_LBA_sup == 1 ?
+		str_yes : str_no);
+}
+
+/*
+ # HDD_IOCTL message handler
+ @ param   : HDD_IOCTL ipc message payload
+ */
+static void hdd_dev_ioctl(const struct ipc_msg_payload_hdd *param)
+{
+	uint32 dev_num;
+	struct hdd_descriptor *ptr_descriptor;
+
+	/* Get hdd descriptor and check */
+	PRE_DEV_USE;
+
+	/* Determine ioctl message type */
+	switch (param->ioctl_msg) {
+
+	case HDD_IMSG_PRINT_ID:
+		/* Print ATA indentity information */
+		hdd_ioctl_print_idinfo(ptr_descriptor);
+		break;
+
+	default:
+		panic("HDD IOCTL RECEIVED UNKNOWN MESSAGE!\n");
+		break;
+	}
 }
 
 
@@ -438,10 +477,7 @@ static void hdd_dev_data_op(const struct ipc_msg_payload_hdd *param, BOOL is_rea
 	uint8 *p_target;
 
 	/* Get hdd descriptor and check */
-	dev_num = param->dev_num;
-	ptr_descriptor = &hdd_descriptors[dev_num];
-        if (ptr_descriptor->ref_cnt == 0)
-                panic("HDD %d DOES NOT OPEN!\n", dev_num);
+	PRE_DEV_USE;
 
 	/* Set "is_master" in sector_param */
 	sector_param.is_master = dev_num == HDD_DEV_PM ? TRUE : FALSE;
@@ -690,6 +726,10 @@ void hdd_message_dispatcher(void)
 
 		case HDD_MSG_CLOSE:
 			hdd_dev_close(ptr_payload);
+			break;
+
+		case HDD_MSG_IOCTL:
+			hdd_dev_ioctl(ptr_payload);
 			break;
 
 		default:

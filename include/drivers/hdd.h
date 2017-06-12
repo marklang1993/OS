@@ -30,6 +30,10 @@
 #define HDD_MSG_WRITE		IPC_MSG_TYPE_GEN(HDD_MAGIC_NUM, DRV_PID_HDD, 11)
 #define HDD_MSG_READ		IPC_MSG_TYPE_GEN(HDD_MAGIC_NUM, DRV_PID_HDD, 12)
 #define HDD_MSG_CLOSE		IPC_MSG_TYPE_GEN(HDD_MAGIC_NUM, DRV_PID_HDD, 13)
+#define HDD_MSG_IOCTL		IPC_MSG_TYPE_GEN(HDD_MAGIC_NUM, DRV_PID_HDD, 14)
+
+/* Harddisk Driver Ioctl Message Type */
+#define HDD_IMSG_PRINT_ID	0x10
 
 /* Harddisk Driver Message Payload */
 struct ipc_msg_payload_hdd
@@ -41,6 +45,8 @@ struct ipc_msg_payload_hdd
 	uint32 base_high;
 	/* Size in bytes */
 	uint32 size;
+	/* Ioctl message type */
+	uint32 ioctl_msg;
 	/* Memory address of buffer in other process */
 	void *buf_address;
 };
