@@ -83,6 +83,12 @@ struct ata_identify
 };
 #pragma pack(pop)
 
+/* HDD descriptor */
+struct hdd_descriptor {
+	uint32 ref_cnt; /* Reference count */
+	struct ata_identify id_info;
+};
+
 /* 1. HDD Device Register */
 union hdd_dev_reg
 {
@@ -153,9 +159,9 @@ struct hdd_ctrl_regs
 
 
 /* HDD internal global variables */
+static BOOL hdd_is_init = FALSE;
 static uint8 hdd_status;
-static struct ata_identify identify_info;
-
+static struct hdd_descriptor hdd_descriptors[HDD_MAX_DRIVES];
 
 /*
  # Processing ata identity string
@@ -208,7 +214,7 @@ static rtc hdd_wait_busy(void)
 static void hdd_send_cmd(const struct hdd_ctrl_regs *ptr_hdd_ctrl)
 {
 	if (hdd_wait_busy() != OK)
-		panic("HDD TIME OUT!");
+		panic("HDD TIME OUT!\n");
 
 	/* Write hdd device control register */
 	io_out_byte(PORT_HDD_DEV_CTRL, ptr_hdd_ctrl->dev_ctrl.data);
@@ -229,12 +235,20 @@ static void hdd_send_cmd(const struct hdd_ctrl_regs *ptr_hdd_ctrl)
  */
 static void hdd_dev_open(const struct ipc_msg_payload_hdd *param)
 {
+	uint32 dev_num;
+	struct hdd_descriptor *ptr_descriptor;
 	struct hdd_ctrl_regs ctrl_regs;
 	uint16 buf[HDD_BYTES_PER_SECTOR / 2];	/* Store raw identify data */
 
 	uint32 capacities;
 	char str_yes[] = "YES";
 	char str_no[] = "NO";
+
+	/* Get hdd descriptor and check */
+	dev_num = param->dev_num;
+	ptr_descriptor = &hdd_descriptors[dev_num];
+	if (ptr_descriptor->ref_cnt != 0)
+		panic("HDD %d REOPEN ERROR!\n", dev_num);
 
 	/* Prepare the command */
 	memset(&ctrl_regs, 0, sizeof(struct hdd_ctrl_regs));
@@ -253,29 +267,60 @@ static void hdd_dev_open(const struct ipc_msg_payload_hdd *param)
 	/* After hdd interrupt, read data */
 	io_bulk_in_word(PORT_HDD_DATA, buf, (sizeof(buf) / sizeof(uint16)));
 
-	/* Format data - discard redundant parts */
-	memcpy(&identify_info, buf, sizeof(struct ata_identify));
+	/* Copy and format data - discard redundant parts */
+	memcpy(
+		&ptr_descriptor->id_info,
+		buf,
+		sizeof(struct ata_identify)
+		);
 
 	/* Print data */
 	ata_id_str_process(
-		identify_info.serial_number,
-		sizeof(identify_info.serial_number));
-	printk("HDD S/N: %s\n", identify_info.serial_number);
-	ata_id_str_process(identify_info.model_number,
-		sizeof(identify_info.model_number));
-	printk("HDD MODEL: %s\n", identify_info.model_number);
+		ptr_descriptor->id_info.serial_number,
+		sizeof(ptr_descriptor->id_info.serial_number));
+	printk("HDD S/N: %s\n", ptr_descriptor->id_info.serial_number);
+
+	ata_id_str_process(ptr_descriptor->id_info.model_number,
+		sizeof(ptr_descriptor->id_info.model_number));
+	printk("HDD MODEL: %s\n", ptr_descriptor->id_info.model_number);
+
 	printk("C/H/S: %u/%u/%u\n",
-		identify_info.cnt_cylinders,
-		identify_info.cnt_headers,
-		identify_info.cnt_sectors);
-	capacities = identify_info.cnt_addressable_sectors * HDD_BYTES_PER_SECTOR / 1000000;
+		ptr_descriptor->id_info.cnt_cylinders,
+		ptr_descriptor->id_info.cnt_headers,
+		ptr_descriptor->id_info.cnt_sectors);
+	capacities = ptr_descriptor->id_info.cnt_addressable_sectors
+			* HDD_BYTES_PER_SECTOR / 1000000;
 	printk("Capacities: %u MB\n", capacities);
+
 	printk("DMA: %s\t",
-		identify_info.capabilities.is_DMA_sup == 1 ?
+		ptr_descriptor->id_info.capabilities.is_DMA_sup == 1 ?
 		str_yes : str_no);
+
 	printk("LBA: %s\n",
-		identify_info.capabilities.is_LBA_sup == 1 ?
+		ptr_descriptor->id_info.capabilities.is_LBA_sup == 1 ?
 		str_yes : str_no);
+
+	/* Increase reference count */
+	ptr_descriptor->ref_cnt += 1;
+}
+
+
+/*
+ # HDD_CLOSE message handler
+ */
+static void hdd_dev_close(const struct ipc_msg_payload_hdd *param)
+{
+	uint32 dev_num;
+	struct hdd_descriptor *ptr_descriptor;
+
+	/* Get hdd descriptor and check */
+	dev_num = param->dev_num;
+	ptr_descriptor = &hdd_descriptors[dev_num];
+	if (ptr_descriptor->ref_cnt == 0)
+		panic("HDD %d DOES NOT OPEN!\n", dev_num);
+
+	/* Decrease reference count */
+	ptr_descriptor->ref_cnt -= 1;
 }
 
 
@@ -376,6 +421,9 @@ static void hdd_dev_sector_op(const struct hdd_sector_param *param, BOOL is_read
  */
 static void hdd_dev_data_op(const struct ipc_msg_payload_hdd *param, BOOL is_read)
 {
+	/* HDD device descriptor */
+	uint32 dev_num;
+	struct hdd_descriptor *ptr_descriptor;
 	/* Bytes related position */
 	uint64 base_pos, limit_pos;
 	uint32 start_pos, cnt_bytes_left;
@@ -389,11 +437,17 @@ static void hdd_dev_data_op(const struct ipc_msg_payload_hdd *param, BOOL is_rea
 	/* Target memory pointer */
 	uint8 *p_target;
 
-	sector_param.is_master = param->dev_num == HDD_DEV_PM ? TRUE : FALSE;
+	/* Get hdd descriptor and check */
+	dev_num = param->dev_num;
+	ptr_descriptor = &hdd_descriptors[dev_num];
+        if (ptr_descriptor->ref_cnt == 0)
+                panic("HDD %d DOES NOT OPEN!\n", dev_num);
+
+	/* Set "is_master" in sector_param */
+	sector_param.is_master = dev_num == HDD_DEV_PM ? TRUE : FALSE;
 	/* Validate parameters */
 	kassert(param->buf_address != NULL);
 	kassert(param->size != 0);
-	kassert(param->dev_num <= HDD_DEV_PS); /* Currently, only support primary IDE */
 
 	/* Calculate base & end position */
 	base_pos = param->base_high;
@@ -565,15 +619,21 @@ void hdd_init(void)
 	cnt_hdd = *((uint8 *)BIOS_HDD_CNT_DRV);
 
 	if (0 == cnt_hdd) {
-		panic("NO HARDDISK DRIVE FOUND!");
+		panic("NO HARDDISK DRIVE FOUND!\n");
 	} else if (cnt_hdd > HDD_MAX_DRIVES) {
-		panic("MORE THAN %d HARDDISK DRIVES!", cnt_hdd);
+		panic("MORE THAN %d HARDDISK DRIVES!\n", cnt_hdd);
 	}
+
+	/* Init. hdd descriptor */
+	memset(hdd_descriptors, 0x0, sizeof(hdd_descriptors));
 
 	/* Init. harddisk interrupt */
 	i8259a_set_handler(INDEX_8259A_HDD, hdd_interrupt_handler);
 	i8259a_int_enable(INDEX_8259A_HDD);
 	i8259a_int_enable(INDEX_8259A_SLAVE);	/* IMPORTANT! */
+
+	/* Set Init. flag */
+	hdd_is_init = TRUE;
 }
 
 
@@ -597,34 +657,39 @@ void hdd_message_dispatcher(void)
 {
 	rtc ret;
 	struct proc_msg msg;
+	struct ipc_msg_payload_hdd *ptr_payload;
 	uint32 src;
+
+	/* Check Init. flag */
+	if (NOT(IS_TRUE(hdd_is_init)))
+		panic("HDD DRIVER IS NOT INITIALIZED!\n");
 
 	while(1) {
 		/* Receive message from other processes */
 		recv_msg(IPC_PROC_ALL, &msg);
 		src = msg.src;
+		ptr_payload = (struct ipc_msg_payload_hdd *)msg.payload;
+
+		/* Check is the device number supported */
+		if (ptr_payload->dev_num >= HDD_MAX_DRIVES)
+			panic("UNSUPPORTED HDD DEVICE NUMBER!\n");
 
 		/* Check message type */
 		switch(msg.type) {
 		case HDD_MSG_OPEN:
-			hdd_dev_open((const struct ipc_msg_payload_hdd *)msg.payload);
+			hdd_dev_open(ptr_payload);
 			break;
 
 		case HDD_MSG_WRITE:
-			hdd_dev_data_op(
-				(const struct ipc_msg_payload_hdd *)msg.payload,
-				FALSE
-				);
+			hdd_dev_data_op(ptr_payload, FALSE);
 			break;
 
 		case HDD_MSG_READ:
-			hdd_dev_data_op(
-				(const struct ipc_msg_payload_hdd *)msg.payload,
-				TRUE
-				);
+			hdd_dev_data_op(ptr_payload, TRUE);
 			break;
 
 		case HDD_MSG_CLOSE:
+			hdd_dev_close(ptr_payload);
 			break;
 
 		default:
