@@ -6,6 +6,12 @@
 	kassert(!ENABLE_SPLIT_KUSPACE); \
 	memcpy((void *)(dst), (void *)(src), size)
 
+#define PRE_DEV_USE \
+	get_descriptor_ptr(param, &ptr_descriptor); \
+	if (0 == ptr_descriptor->ref_cnt) \
+		panic("HDDP - PARTITION %x NOT OPEN ERROR!\n", \
+			param->dev_num)
+
 
 /* Harddisk partition descriptor */
 struct hdd_partition_descriptor
@@ -108,8 +114,7 @@ static void get_descriptor_ptr(
 
 	/* Check hdd partition type */
 	if (NOT(IS_TRUE(ptr_descriptor->is_valid)))
-		panic("HDDP - INVALID PARTITION %d:%d\n",
-			hddp_mbr_index, hddp_logical_index);
+		panic("HDDP - INVALID PARTITION %x\n", param->dev_num);
 	if (ptr_descriptor->type == PART_TYPE_EXTENDED)
 		panic("HDDP - EXTENDED PARTITION IS NOT SUPPORTED!\n");
 
@@ -133,8 +138,8 @@ static void calculate_hdd_base(
 	uint64 end_addr; /* Opeartion end address */
 	struct hdd_partition_descriptor *ptr_descriptor;
 
-	/* Get partition descriptor pointer */
-	get_descriptor_ptr(param, &ptr_descriptor);
+	/* Get hdd descriptor and check */
+	PRE_DEV_USE;
 
 	/* Calculate base address & limit address */
 	if (param->is_reserved) {
@@ -410,10 +415,26 @@ static void hddp_dev_open(const struct ipc_msg_payload_hdd_part *param)
 
 	/* Temporarily not support open multiple times */
 	if (ptr_descriptor->ref_cnt != 0)
-		panic("HDDP - PARTITION %d:%d REOPEN ERROR!\n");
+		panic("HDDP - PARTITION %x REOPEN ERROR!\n", param->dev_num);
 
 	/* Reference count increase */
 	ptr_descriptor->ref_cnt += 1;
+}
+
+
+/*
+ # HDDP_CLOSE message handler
+ @ param : hdd partition close parameters
+ */
+static void hddp_dev_close(const struct ipc_msg_payload_hdd_part *param)
+{
+	struct hdd_partition_descriptor *ptr_descriptor;
+
+	/* Get hdd descriptor and check */
+	PRE_DEV_USE;
+
+	/* Reference count increase */
+	ptr_descriptor->ref_cnt -= 1;
 }
 
 
@@ -478,6 +499,7 @@ void hddp_message_dispatcher(void)
 			break;
 
 		case HDDP_MSG_CLOSE:
+			hddp_dev_close(ptr_payload);
 			break;
 
 		default:
