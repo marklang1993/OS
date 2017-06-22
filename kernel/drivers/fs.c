@@ -66,7 +66,7 @@ void fs_message_dispatcher(void)
 	comm_msg(DRV_PID_HDDP, &msg);
 
 	msg.type = HDDP_MSG_OPEN;
-	payload->dev_num = HDDP_DEV_NUM_GEN(4, 'a');
+	payload->dev_num = HDDP_DEV_NUM_GEN(6, 'a');
 	comm_msg(DRV_PID_HDDP, &msg);
 
 	msg.type = HDDP_MSG_WRITE;

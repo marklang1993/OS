@@ -3,8 +3,8 @@
 #include "drivers/hdd_part.h"
 
 #define COPY_BUF(dst, src, size) \
-        kassert(!ENABLE_SPLIT_KUSPACE); \
-        memcpy((void *)(dst), (void *)(src), size)
+	kassert(!ENABLE_SPLIT_KUSPACE); \
+	memcpy((void *)(dst), (void *)(src), size)
 
 
 /* Harddisk partition descriptor */
@@ -41,9 +41,9 @@ static struct hdd_mbr_partition_descriptor hdd_part_table[HDDP_MAX_MBR_P_CNT];
  @ base_sector_offset   : base_sector_lba offset
  */
 static void hddp_descriptor_init(
-	struct hdd_partition_descriptor *ptr_descriptor,
-	const struct hdd_partition_descriptor const *ptr_last_descriptor,
-	const struct partition_table_entry const *ptr_part_table_entry,
+	struct hdd_partition_descriptor *const ptr_descriptor,
+	const struct hdd_partition_descriptor *const ptr_last_descriptor,
+	const struct partition_table_entry *const ptr_part_table_entry,
 	const uint32 base_sector_offset
 )
 {
@@ -60,7 +60,7 @@ static void hddp_descriptor_init(
 	ptr_descriptor->base_sector = ptr_part_table_entry->base_sector_lba +
 				base_sector_offset;
 	ptr_descriptor->cnt_sectors = ptr_part_table_entry->cnt_sectors;
-        ptr_descriptor->last_sector = ptr_descriptor->base_sector +
+	ptr_descriptor->last_sector = ptr_descriptor->base_sector +
 				ptr_descriptor->cnt_sectors - 1;
 	/* Calculate reserved sectors of current partition */
 	if (ptr_last_descriptor != NULL) {
@@ -80,21 +80,18 @@ static void hddp_descriptor_init(
 
 
 /*
- # Calculate HDD base address
- @ param    : hdd partition parameters
- @ ptr_base : pointer to result of calculated base address
+ # Get pointer of partition descriptor
+ @ param         : hdd partition parameters
+ @ pp_descriptor : pointer to pointer of partition descriptor
  */
-static void calculate_hdd_base(
+static void get_descriptor_ptr(
 	const struct ipc_msg_payload_hdd_part *param,
-	uint64 *ptr_base
+	struct hdd_partition_descriptor **const pp_descriptor
 )
 {
 	uint32 hddp_mbr_index; /* hdd partition mbr index */
 	uint32 hddp_logical_index; /* hdd partition logical index */
-	uint64 base_addr; /* Opeartion start address */
-	uint64 limit_addr; /* Upper limit on address */
-	uint64 end_addr; /* Opeartion end address */
-	const struct hdd_partition_descriptor *ptr_descriptor;
+	struct hdd_partition_descriptor *ptr_descriptor;
 
 	/* Get partition table index */
 	hddp_mbr_index = HDDP_GET_MBR_NUM(param->dev_num);
@@ -111,9 +108,33 @@ static void calculate_hdd_base(
 
 	/* Check hdd partition type */
 	if (NOT(IS_TRUE(ptr_descriptor->is_valid)))
-		panic("HDDP - INVALID PARTITION!");
+		panic("HDDP - INVALID PARTITION %d:%d\n",
+			hddp_mbr_index, hddp_logical_index);
 	if (ptr_descriptor->type == PART_TYPE_EXTENDED)
-		panic("HDDP - EXTENDED PARTITION IS NOT SUPPORTED!");
+		panic("HDDP - EXTENDED PARTITION IS NOT SUPPORTED!\n");
+
+	/* Return descriptor pointer */
+	*pp_descriptor = ptr_descriptor;
+}
+
+
+/*
+ # Calculate HDD base address
+ @ param    : hdd partition parameters
+ @ ptr_base : pointer to result of calculated base address
+ */
+static void calculate_hdd_base(
+	const struct ipc_msg_payload_hdd_part *param,
+	uint64 *ptr_base
+)
+{
+	uint64 base_addr; /* Opeartion start address */
+	uint64 limit_addr; /* Upper limit on address */
+	uint64 end_addr; /* Opeartion end address */
+	struct hdd_partition_descriptor *ptr_descriptor;
+
+	/* Get partition descriptor pointer */
+	get_descriptor_ptr(param, &ptr_descriptor);
 
 	/* Calculate base address & limit address */
 	if (param->is_reserved) {
@@ -130,11 +151,11 @@ static void calculate_hdd_base(
 
 	/* Check the end address of operating */
 	if (0 == param->size)
-		panic("HDDP - OPEARTION SIZE IS 0!");
+		panic("HDDP - OPEARTION SIZE IS 0!\n");
 	end_addr = base_addr;
 	end_addr += (param->size - 1);
 	if (end_addr >= limit_addr)
-		panic("HDDP - OPEARTION OUT OF BOUND!");
+		panic("HDDP - OPEARTION OUT OF BOUND!\n");
 
 	/* Return base address */
 	*ptr_base = base_addr;
@@ -180,9 +201,9 @@ static rtc hdd_op(
 	/* Check result */
 	if (HDD_MSG_ERROR == msg.type) {
 		if (is_read) {
-			panic("HDDP - HDD READ ERROR!");
+			panic("HDDP - HDD READ ERROR!\n");
 		} else {
-			panic("HDDP - HDD WRITE ERROR!");
+			panic("HDDP - HDD WRITE ERROR!\n");
 		}
 	}
 
@@ -218,15 +239,15 @@ static void hddp_dev_op(const struct ipc_msg_payload_hdd_part *param, BOOL is_re
 
 	/* Check the result */
 	if (ret != OK)
-		panic("HDDP - DEVICE OPERATION FAILED!");
+		panic("HDDP - DEVICE OPERATION FAILED!\n");
 }
 
 
 /*
- # HDDP_OPEN message handler
- @ param : hdd partition open parameters
+ # Read partition table by hdd minor device number
+ @ hdd_dev_num : hdd minor device number
  */
-static void hddp_dev_open(const struct ipc_msg_payload_hdd_part *param)
+static void read_part_table(uint32 hdd_dev_num)
 {
 	struct proc_msg msg;
 	struct ipc_msg_payload_hdd *ptr_payload_hdd; /* HDD Driver Payload */
@@ -234,18 +255,15 @@ static void hddp_dev_open(const struct ipc_msg_payload_hdd_part *param)
 	struct partition_table_entry logic_part_table_buf[COUNT_L_PART_TABLE_ENTRY];
 	struct hdd_partition_descriptor *ptr_last_mbr_part_descriptor;
 	struct hdd_partition_descriptor *ptr_last_logical_part_descriptor;
-	uint32 hdd_dev_num; /* hdd minor device number */
 	uint32 hdd_part_table_base; /* hdd_part_table base index */
 	uint32 extended_part_sector_offset; /* extended partition table offset in sectors */
 	uint64 extended_part_offset; /* extended partition table offset in bytes */
 	rtc ret;
 	uint32 i, j;
 
-	/* Determine: primary master HDD / primary slave HDD */
-	hdd_dev_num = HDDP_GET_MBR_NUM(param->dev_num) / PART_MAX_PART_MBR;
-        /* Locate the base index of entry in HDD Partition Table */
+	/* Locate the base index of descriptor in HDD Partition Table */
 	hdd_part_table_base = hdd_dev_num * PART_MAX_PART_MBR;
-        /* Init. ptr_last_mbr_part_descriptor */
+	/* Init. ptr_last_mbr_part_descriptor */
 	ptr_last_mbr_part_descriptor = NULL;
 	/* Send OPEN message to HDD driver */
 	msg.type = HDD_MSG_OPEN;
@@ -356,6 +374,50 @@ static void hddp_dev_open(const struct ipc_msg_payload_hdd_part *param)
 
 
 /*
+ # HDDP_OPEN message handler
+ @ param : hdd partition open parameters
+ */
+static void hddp_dev_open(const struct ipc_msg_payload_hdd_part *param)
+{
+	uint32 hdd_dev_num; /* hdd minor device number */
+	uint32 hdd_part_table_base; /* hdd_part_table base index */
+	uint32 cnt_valid; /* count of valid mbr partition table entries */
+	struct hdd_partition_descriptor *ptr_descriptor;
+	uint32 i;
+
+	/* Determine: primary master HDD / primary slave HDD */
+	hdd_dev_num = HDDP_GET_MBR_NUM(param->dev_num) / PART_MAX_PART_MBR;
+	/* Locate the base index of entry in HDD Partition Table */
+	hdd_part_table_base = hdd_dev_num * PART_MAX_PART_MBR;
+
+	/* Check all mbr partitions of the corresponding HDD */
+	cnt_valid = 0;
+	for (i = 0; i < COUNT_M_PART_TABLE_ENTRY; ++i) {
+		if (IS_TRUE(hdd_part_table[i + hdd_part_table_base]
+			.main.is_valid)) {
+			/* If this is a valid mbr partition */
+			++cnt_valid;
+		}
+	}
+	/* Determine is necessary to read partition table */
+	if (0 == cnt_valid) {
+		read_part_table(hdd_dev_num);
+	}
+
+	/* Check & Get specified partition is valid */
+	/* NOTE: Checking is handled at the same time */
+	get_descriptor_ptr(param, &ptr_descriptor);
+
+	/* Temporarily not support open multiple times */
+	if (ptr_descriptor->ref_cnt != 0)
+		panic("HDDP - PARTITION %d:%d REOPEN ERROR!\n");
+
+	/* Reference count increase */
+	ptr_descriptor->ref_cnt += 1;
+}
+
+
+/*
  # Initialize Harddisk Partition Driver (Ring 0)
  */
 void hddp_init(void)
@@ -364,7 +426,7 @@ void hddp_init(void)
 	memset(hdd_part_table, 0x0, sizeof(hdd_part_table));
 
 	/* Set Init. flag */
-        hddp_is_init = TRUE;
+	hddp_is_init = TRUE;
 }
 
 
@@ -381,8 +443,8 @@ void hddp_message_dispatcher(void)
 	uint32 hddp_logical_index; /* hdd partition logical index */
 
 	/* Check Init. flag */
-        if (NOT(IS_TRUE(hddp_is_init)))
-                panic("HDDP DRIVER IS NOT INITIALIZED!\n");
+	if (NOT(IS_TRUE(hddp_is_init)))
+		panic("HDDP DRIVER IS NOT INITIALIZED!\n");
 
 	while(1) {
 		/* Receive message from other processes */
@@ -396,10 +458,10 @@ void hddp_message_dispatcher(void)
 		hddp_logical_index = HDDP_GET_LOGICAL_NUM(ptr_payload->dev_num);
 		/* Validate */
 		if (hddp_mbr_index >= HDDP_MAX_MBR_P_CNT)
-			panic("HDDP - MBR INDEX OUT OF BOUND!");
+			panic("HDDP - MBR INDEX OUT OF BOUND!\n");
 		/* NOTE: Valid range of logical index is 0~16 */
 		if (hddp_logical_index > PART_MAX_L_PER_EX_PART)
-			panic("HDDP - LOGICAL INDEX OUT OF BOUND!");
+			panic("HDDP - LOGICAL INDEX OUT OF BOUND!\n");
 
 		/* Check message type */
 		switch(msg.type) {
