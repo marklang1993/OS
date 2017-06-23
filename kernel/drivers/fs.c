@@ -6,95 +6,33 @@
 /* File System Driver Message Dispatcher */
 void fs_message_dispatcher(void)
 {
-/*
 	struct proc_msg msg;
-	struct ipc_msg_payload_hdd *payload;
-	uint8 data[0xa00];
-	uint32 i;
+	struct ipc_msg_payload_hddp *payload;
+	struct ipc_msg_payload_hddp_get_info *ret_payload;
 
-        msg.type = HDD_MSG_OPEN;
-	payload = (struct ipc_msg_payload_hdd *)msg.payload;
-	payload->dev_num = HDD_DEV_PM;
-        comm_msg(DRV_PID_HDD, &msg);
-
-        msg.type = HDD_MSG_OPEN;
-	payload = (struct ipc_msg_payload_hdd *)msg.payload;
-	payload->dev_num = HDD_DEV_PS;
-        comm_msg(DRV_PID_HDD, &msg);
-
-	msg.type = HDD_MSG_WRITE;
-	memset(data, 0xd3, 0xa00);
-	payload = (struct ipc_msg_payload_hdd *)msg.payload;
-	payload->dev_num = HDD_DEV_PM;
-	payload->base_low = 0x100000;
-	payload->base_high = 0x0;
-	payload->size = 32;
-	payload->buf_address = data;
-	comm_msg(DRV_PID_HDD, &msg);
-
-	msg.type = HDD_MSG_READ;
-	memset(data, 0x0, 0xa00);
-	payload = (struct ipc_msg_payload_hdd *)msg.payload;
-	payload->dev_num = HDD_DEV_PM;
-	payload->base_low = 0x1053f0;
-	payload->base_high = 0;
-	payload->size = 32;
-	payload->buf_address = data;
-	comm_msg(DRV_PID_HDD, &msg);
-
-	printk("Data:");
-	for (i = 0; i < 0x30; ++i) {
-		if (i % 16 == 0) {
-			printk("\nROW:%x  ", i/16);
-		}
-		printk("%x ", data[i]);
-	}
-
-	printk("\nContinue to run fs.c\n");
-*/
-
-	struct proc_msg msg;
-	struct ipc_msg_payload_hdd_part *payload;
-	uint8 data[0xa00];
-	uint32 i;
-
-	payload = (struct ipc_msg_payload_hdd_part *)msg.payload;
-	memset(data, 0x0, 0xa00);
+	payload = (struct ipc_msg_payload_hddp *)msg.payload;
 
 	msg.type = HDDP_MSG_OPEN;
 	payload->dev_num = HDDP_DEV_NUM_GEN(0, 0);
 	comm_msg(DRV_PID_HDDP, &msg);
 
 	msg.type = HDDP_MSG_OPEN;
-	payload->dev_num = HDDP_DEV_NUM_GEN(6, 'a');
+	payload->dev_num = HDDP_DEV_NUM_GEN(1, 'a');
 	comm_msg(DRV_PID_HDDP, &msg);
 
-	msg.type = HDDP_MSG_WRITE;
-	payload->dev_num = HDDP_DEV_NUM_GEN(0, 0);
-	payload->is_reserved = FALSE;
-	payload->base_low = 0x40;
-	payload->base_high = 0;
-	payload->size = 10240;
-	payload->buf_address = (void *)0x50400;
-	comm_msg(DRV_PID_HDDP, &msg);
-/*
-	msg.type = HDDP_MSG_READ;
-	payload->dev_num = HDDP_DEV_NUM_GEN(0, 0);
-	payload->is_reserved = FALSE;
-	payload->base_low = 0x20;
-	payload->base_high = 0;
-	payload->size = 0x400;
-	payload->buf_address = data;
+	msg.type = HDDP_MSG_IOCTL;
+	payload->dev_num = HDDP_DEV_NUM_GEN(1, 'a');
+	payload->ioctl_msg = HDDP_IMSG_GET_INFO;
 	comm_msg(DRV_PID_HDDP, &msg);
 
-	printk("Data:");
-	for (i = 0x3d0; i < 0x410; ++i) {
-		if (i % 16 == 0) {
-			printk("\nROW:%x  ", i/16);
-		}
-		printk("%x ", data[i]);
-	}
-*/
+	ret_payload = (struct ipc_msg_payload_hddp_get_info *)payload;
+	printk("is_bootable: %d, type: %x, cnt: %d, rev: %d\n",
+		ret_payload->is_bootable,
+		ret_payload->type,
+		ret_payload->cnt_sectors,
+		ret_payload->rev_sectors
+		);
+
 	printk("\nOperation Finished!\n");
 
         while(1);

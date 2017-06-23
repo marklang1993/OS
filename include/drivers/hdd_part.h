@@ -6,13 +6,25 @@
 /* Harddisk Partition Driver Message Type */
 #define HDDP_MAGIC_NUM		'p'
 
-#define HDDP_MSG_OK              IPC_MSG_TYPE_GEN(HDDP_MAGIC_NUM, DRV_PID_HDDP, 0)
-#define HDDP_MSG_ERROR           IPC_MSG_TYPE_GEN(HDDP_MAGIC_NUM, DRV_PID_HDDP, -1)
+#define HDDP_MSG_OK		IPC_MSG_TYPE_GEN(HDDP_MAGIC_NUM, DRV_PID_HDDP, 0)
+#define HDDP_MSG_ERROR		IPC_MSG_TYPE_GEN(HDDP_MAGIC_NUM, DRV_PID_HDDP, -1)
 
-#define HDDP_MSG_OPEN            IPC_MSG_TYPE_GEN(HDDP_MAGIC_NUM, DRV_PID_HDDP, 10)
-#define HDDP_MSG_WRITE           IPC_MSG_TYPE_GEN(HDDP_MAGIC_NUM, DRV_PID_HDDP, 11)
-#define HDDP_MSG_READ            IPC_MSG_TYPE_GEN(HDDP_MAGIC_NUM, DRV_PID_HDDP, 12)
-#define HDDP_MSG_CLOSE           IPC_MSG_TYPE_GEN(HDDP_MAGIC_NUM, DRV_PID_HDDP, 13)
+#define HDDP_MSG_OPEN		IPC_MSG_TYPE_GEN(HDDP_MAGIC_NUM, DRV_PID_HDDP, 10)
+#define HDDP_MSG_WRITE		IPC_MSG_TYPE_GEN(HDDP_MAGIC_NUM, DRV_PID_HDDP, 11)
+#define HDDP_MSG_READ		IPC_MSG_TYPE_GEN(HDDP_MAGIC_NUM, DRV_PID_HDDP, 12)
+#define HDDP_MSG_CLOSE		IPC_MSG_TYPE_GEN(HDDP_MAGIC_NUM, DRV_PID_HDDP, 13)
+#define HDDP_MSG_IOCTL		IPC_MSG_TYPE_GEN(HDDP_MAGIC_NUM, DRV_PID_HDDP, 14)
+
+/* Harddisk Partition Driver Ioctl Message Type */
+#define HDDP_IMSG_GET_INFO       0x10	/* Get Partition Info. */
+struct ipc_msg_payload_hddp_get_info
+{
+	BOOL is_bootable;
+	uint32 type;
+	uint32 cnt_sectors;
+	uint32 rev_sectors;
+};
+
 
 /*
  * HDD Partition Device Number -- Minor Device Number
@@ -59,7 +71,7 @@
 
 
 /* Harddisk Partition Driver Message Payload */
-struct ipc_msg_payload_hdd_part
+struct ipc_msg_payload_hddp
 {
 	/* Minor device number */
 	uint32 dev_num;
@@ -70,6 +82,8 @@ struct ipc_msg_payload_hdd_part
 	uint32 base_high;
 	/* Size in bytes */
 	uint32 size;
+	/* Ioctl message type */
+	uint32 ioctl_msg;
 	/* Memory address of buffer in other process */
 	void *buf_address;
 };

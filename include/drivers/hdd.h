@@ -33,7 +33,7 @@
 #define HDD_MSG_IOCTL		IPC_MSG_TYPE_GEN(HDD_MAGIC_NUM, DRV_PID_HDD, 14)
 
 /* Harddisk Driver Ioctl Message Type */
-#define HDD_IMSG_PRINT_ID	0x10
+#define HDD_IMSG_PRINT_ID	0x10	/* Print Identity Info. */
 
 /* Harddisk Driver Message Payload */
 struct ipc_msg_payload_hdd

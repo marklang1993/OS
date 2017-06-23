@@ -340,7 +340,7 @@ static void hdd_ioctl_print_idinfo(const struct hdd_descriptor *ptr_descriptor)
  # HDD_IOCTL message handler
  @ param   : HDD_IOCTL ipc message payload
  */
-static void hdd_dev_ioctl(const struct ipc_msg_payload_hdd *param)
+static void hdd_dev_ioctl(struct ipc_msg_payload_hdd *const param)
 {
 	uint32 dev_num;
 	struct hdd_descriptor *ptr_descriptor;

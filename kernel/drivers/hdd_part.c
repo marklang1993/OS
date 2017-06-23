@@ -18,8 +18,8 @@ struct hdd_partition_descriptor
 {
 	BOOL is_valid; /* If not ture, others are invalid */
 	uint32 ref_cnt;		/* Reference count */
-	BOOL is_bootable;
-	uint32 type;
+	BOOL is_bootable;	/* Is partition bootable */
+	uint32 type;		/* Partition type */
 	uint32 base_sector;	/* Base usable sector index */
 	uint32 last_sector;	/* Last sector index */
 	uint32 cnt_sectors;	/* Count of usable sectors */
@@ -91,7 +91,7 @@ static void hddp_descriptor_init(
  @ pp_descriptor : pointer to pointer of partition descriptor
  */
 static void get_descriptor_ptr(
-	const struct ipc_msg_payload_hdd_part *param,
+	const struct ipc_msg_payload_hddp *param,
 	struct hdd_partition_descriptor **const pp_descriptor
 )
 {
@@ -109,7 +109,8 @@ static void get_descriptor_ptr(
 		ptr_descriptor = &(hdd_part_table[hddp_mbr_index].main);
 	} else {
 		/* Logical partition */
-		ptr_descriptor = &(hdd_part_table[hddp_mbr_index].logicals[hddp_logical_index - 1]);
+		ptr_descriptor = &(hdd_part_table[hddp_mbr_index].
+			logicals[hddp_logical_index - 1]);
 	}
 
 	/* Check hdd partition type */
@@ -129,7 +130,7 @@ static void get_descriptor_ptr(
  @ ptr_base : pointer to result of calculated base address
  */
 static void calculate_hdd_base(
-	const struct ipc_msg_payload_hdd_part *param,
+	const struct ipc_msg_payload_hddp *param,
 	uint64 *ptr_base
 )
 {
@@ -145,14 +146,17 @@ static void calculate_hdd_base(
 	if (param->is_reserved) {
 		/* Reserved sectors */
 		base_addr = ((uint64)(ptr_descriptor->base_sector
-			- ptr_descriptor->rev_sectors)) * HDD_BYTES_PER_SECTOR;
+			- ptr_descriptor->rev_sectors))
+			* HDD_BYTES_PER_SECTOR;
 	} else {
 		/* Non-reserved sectors */
-		base_addr = ((uint64)ptr_descriptor->base_sector) * HDD_BYTES_PER_SECTOR;
+		base_addr = ((uint64)ptr_descriptor->base_sector)
+			* HDD_BYTES_PER_SECTOR;
 	}
 	base_addr += param->base_low;
 	base_addr += ((uint64)param->base_high) << 32;
-	limit_addr = ((uint64)(ptr_descriptor->last_sector + 1)) * HDD_BYTES_PER_SECTOR;
+	limit_addr = ((uint64)(ptr_descriptor->last_sector + 1))
+			* HDD_BYTES_PER_SECTOR;
 
 	/* Check the end address of operating */
 	if (0 == param->size)
@@ -198,7 +202,8 @@ static rtc hdd_op(
 	ptr_payload_hdd = (struct ipc_msg_payload_hdd *)msg.payload;
 	ptr_payload_hdd->dev_num = hdd_dev_num;
 	ptr_payload_hdd->base_low = (uint32)(pos & 0xffffffffull);
-	ptr_payload_hdd->base_high = (uint32)((pos & 0xffffffff00000000ull) >> 32);
+	ptr_payload_hdd->base_high = (uint32)((pos & 0xffffffff00000000ull)
+					>> 32);
 	ptr_payload_hdd->size = size;
 	ptr_payload_hdd->buf_address = buf;
 
@@ -221,7 +226,10 @@ static rtc hdd_op(
  @ param   : hdd partition opeartion parameters
  @ is_read : is read opeartion
  */
-static void hddp_dev_op(const struct ipc_msg_payload_hdd_part *param, BOOL is_read)
+static void hddp_dev_op(
+	const struct ipc_msg_payload_hddp *param,
+	BOOL is_read
+)
 {
 	uint64 hdd_base_address;
 	uint32 hdd_dev_num; /* hdd minor device number */
@@ -310,13 +318,15 @@ static void read_part_table(uint32 hdd_dev_num)
 		if (PART_TYPE_EXTENDED !=
 			hdd_part_table[i + hdd_part_table_base].main.type) {
 			/* Update pointer of last MBR partition descriptor */
-			ptr_last_mbr_part_descriptor = &hdd_part_table[i + hdd_part_table_base].main;
+			ptr_last_mbr_part_descriptor = &hdd_part_table
+				[i + hdd_part_table_base].main;
 			continue;
 		}
 
 		/* Continue to process logical partitions */
 		extended_part_sector_offset =
-			hdd_part_table[i + hdd_part_table_base].main.base_sector;
+			hdd_part_table[i + hdd_part_table_base]
+			.main.base_sector;
 		extended_part_offset = extended_part_sector_offset *
 					HDD_BYTES_PER_SECTOR +
 					BASE_PARTITION_TABLE;
@@ -332,7 +342,8 @@ static void read_part_table(uint32 hdd_dev_num)
 		/* Check current raw logical partition table entry is empty */
 		if (PART_TYPE_NULL == logic_part_table_buf[0].type) {
 			/* Update pointer of last MBR partition descriptor */
-			ptr_last_mbr_part_descriptor = &hdd_part_table[i + hdd_part_table_base].main;
+			ptr_last_mbr_part_descriptor = &hdd_part_table
+				[i + hdd_part_table_base].main;
 			continue;
 		}
 
@@ -347,15 +358,17 @@ static void read_part_table(uint32 hdd_dev_num)
 
 		/* Check next logical partition table */
 		while (PART_TYPE_EXTENDED == logic_part_table_buf[1].type) {
-			ptr_last_logical_part_descriptor = &hdd_part_table[i + hdd_part_table_base].logicals[j];
+			ptr_last_logical_part_descriptor = &hdd_part_table
+				[i + hdd_part_table_base].logicals[j];
 			/* Read next logical partition table */
 			ret = hdd_op(
 				hdd_dev_num,
 				TRUE,
 				extended_part_offset
-				+ logic_part_table_buf[1].base_sector_lba
-				* HDD_BYTES_PER_SECTOR,
-				PARTITION_TABLE_ENTRY_SIZE * COUNT_L_PART_TABLE_ENTRY,
+					+ logic_part_table_buf[1].base_sector_lba
+					* HDD_BYTES_PER_SECTOR,
+				PARTITION_TABLE_ENTRY_SIZE
+					* COUNT_L_PART_TABLE_ENTRY,
 				logic_part_table_buf);
 
 			/* Check current raw partition table entry is empty */
@@ -365,15 +378,18 @@ static void read_part_table(uint32 hdd_dev_num)
 			/* Process this partition table entry */
 			++j;
 			hddp_descriptor_init(
-				&hdd_part_table[i + hdd_part_table_base].logicals[j],
+				&hdd_part_table[i + hdd_part_table_base]
+					.logicals[j],
 				ptr_last_logical_part_descriptor,
 				&logic_part_table_buf[0],
 				ptr_last_logical_part_descriptor->base_sector
-					+ ptr_last_logical_part_descriptor->cnt_sectors
+					+ ptr_last_logical_part_descriptor
+						->cnt_sectors
 			);
 		}
 		/* Update pointer of last MBR partition descriptor */
-		ptr_last_mbr_part_descriptor = &hdd_part_table[i + hdd_part_table_base].main;
+		ptr_last_mbr_part_descriptor = &hdd_part_table
+			[i + hdd_part_table_base].main;
 	}
 }
 
@@ -382,7 +398,7 @@ static void read_part_table(uint32 hdd_dev_num)
  # HDDP_OPEN message handler
  @ param : hdd partition open parameters
  */
-static void hddp_dev_open(const struct ipc_msg_payload_hdd_part *param)
+static void hddp_dev_open(const struct ipc_msg_payload_hddp *param)
 {
 	uint32 hdd_dev_num; /* hdd minor device number */
 	uint32 hdd_part_table_base; /* hdd_part_table base index */
@@ -426,7 +442,7 @@ static void hddp_dev_open(const struct ipc_msg_payload_hdd_part *param)
  # HDDP_CLOSE message handler
  @ param : hdd partition close parameters
  */
-static void hddp_dev_close(const struct ipc_msg_payload_hdd_part *param)
+static void hddp_dev_close(const struct ipc_msg_payload_hddp *param)
 {
 	struct hdd_partition_descriptor *ptr_descriptor;
 
@@ -435,6 +451,54 @@ static void hddp_dev_close(const struct ipc_msg_payload_hdd_part *param)
 
 	/* Reference count increase */
 	ptr_descriptor->ref_cnt -= 1;
+}
+
+
+/*
+ # Get partition information
+ @ param          : pointer to payload of returning information
+ @ ptr_descriptor : pointer to partition descriptor
+ */
+static void hddp_ioctl_get_info(
+	struct ipc_msg_payload_hddp_get_info *const param,
+	const struct hdd_partition_descriptor *ptr_descriptor
+)
+{
+	/* Copy parameters of this partition descriptor */
+	param->is_bootable = ptr_descriptor->is_bootable;
+	param->type = ptr_descriptor->type;
+	param->cnt_sectors = ptr_descriptor->cnt_sectors;
+	param->rev_sectors = ptr_descriptor->rev_sectors;
+}
+
+
+/*
+ # HDDP_IOCTL message handler
+ @ param : hdd partition ioctl parameters
+ */
+static void hddp_dev_ioctl(struct ipc_msg_payload_hddp *const param)
+{
+	struct hdd_partition_descriptor *ptr_descriptor;
+
+	/* Get hdd descriptor and check */
+	PRE_DEV_USE;
+
+	/* Determine ioctl message type */
+	switch (param->ioctl_msg) {
+
+	case HDDP_IMSG_GET_INFO:
+                /* Get partition information */
+                hddp_ioctl_get_info(
+			(struct ipc_msg_payload_hddp_get_info *)param,
+			ptr_descriptor
+		);
+                break;
+
+        default:
+                panic("HDDP - IOCTL RECEIVED UNKNOWN MESSAGE!\n");
+                break;
+        }
+
 }
 
 
@@ -458,7 +522,7 @@ void hddp_message_dispatcher(void)
 {
 	rtc ret;
 	struct proc_msg msg;
-	struct ipc_msg_payload_hdd_part *ptr_payload;
+	struct ipc_msg_payload_hddp *ptr_payload;
 	uint32 src;
 	uint32 hddp_mbr_index; /* hdd partition mbr index */
 	uint32 hddp_logical_index; /* hdd partition logical index */
@@ -471,7 +535,7 @@ void hddp_message_dispatcher(void)
 		/* Receive message from other processes */
 		recv_msg(IPC_PROC_ALL, &msg);
 		src = msg.src;
-		ptr_payload = (struct ipc_msg_payload_hdd_part *)msg.payload;
+		ptr_payload = (struct ipc_msg_payload_hddp *)msg.payload;
 		printk("HDDP MSG TYPE: 0x%x\n", msg.type);
 
 		/* Get partition table index */
@@ -500,6 +564,10 @@ void hddp_message_dispatcher(void)
 
 		case HDDP_MSG_CLOSE:
 			hddp_dev_close(ptr_payload);
+			break;
+
+		case HDDP_MSG_IOCTL:
+			hddp_dev_ioctl(ptr_payload);
 			break;
 
 		default:
