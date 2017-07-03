@@ -1,11 +1,12 @@
 #include "lib.h"
-#include "part_table.h"
-#include "drivers/fs.h"
-#include "drivers/hdd_part.h"
+#include "drivers/fs/fs.h"
+#include "drivers/fs/inode.h"
 
 /* File System Driver Message Dispatcher */
 void fs_message_dispatcher(void)
 {
+	struct indir_block_ref ref;
+/*
 	struct proc_msg msg;
 	struct ipc_msg_payload_hddp *payload;
 	struct ipc_msg_payload_hddp_get_info *ret_payload;
@@ -34,6 +35,8 @@ void fs_message_dispatcher(void)
 		);
 
 	printk("\nOperation Finished!\n");
-
+*/
+	printk("DINODE SIZE: %d\n", DINODE_SIZE);
+	printk("INDIR_REF SIZE: %d\n", sizeof(ref));
         while(1);
 }

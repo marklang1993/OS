@@ -116,7 +116,7 @@ hdd.o :		kernel/drivers/hdd.c
 hdd_part.o :	kernel/drivers/hdd_part.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
-fs.o :		kernel/drivers/fs.c
+fs.o :		kernel/drivers/fs/fs.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
 boot.bin : 	boot/boot.asm

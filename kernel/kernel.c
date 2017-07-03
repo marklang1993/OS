@@ -3,7 +3,7 @@
 #include "lib.h"
 #include "proc.h"
 #include "syscall.h"
-#include "drivers/fs.h"
+#include "drivers/fs/fs.h"
 #include "drivers/hdd.h"
 #include "drivers/hdd_part.h"
 #include "drivers/i8253.h"
