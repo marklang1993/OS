@@ -15,7 +15,7 @@
 /* Process constants */
 #define PROCESS_NAME_LENGTH	16
 #define PROCESS_STACK_SIZE	0x400	/* 0x400 * 4 byte = 4 KB */
-#define USER_PROCESS_COUNT	7
+#define USER_PROCESS_COUNT	8
 
 /* Process status */
 typedef uint32 PROC_STATUS;

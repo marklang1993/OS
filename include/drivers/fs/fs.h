@@ -20,8 +20,48 @@
 
 /* Common FS macros */
 #define FS_BYTES_PER_BLOCK	HDD_BYTES_PER_SECTOR
+#define FS_MAX_MBR_P_CNT	HDDP_MAX_MBR_P_CNT
+
+/*
+ # File System Device Number Generator
+ @ mbr     : MBR partition index (Range: 0~7)
+ @ logical : Logical partition index (Range: a~p)
+ */
+#define FS_DEV_NUM_GEN(mbr, logical)	HDDP_DEV_NUM_GEN(mbr, logical)
+
+/*
+ # Convert FS Logical Partition Index to Logical Partition Index
+ @ fs_logical : FS logical partition index
+ */
+#define LOGICAL_CONVERT(fs_logical) \
+	(fs_logical == 0 ? 0 : fs_logical - 1 + 'a')
+
+/*
+ # Get MBR partition index from File System Device Number
+ @ dev_number : File System Device Number
+ */
+#define FS_GET_MBR_NUM(dev_number)	HDDP_GET_MBR_NUM(dev_number)
+
+/*
+ # Get logical partition index from File System Device Number
+ @ dev_number : File System Device Number
+ */
+#define FS_GET_LOGICAL_NUM(dev_number)	HDDP_GET_LOGICAL_NUM(dev_number)
+
+/* File System Driver Message Payload */
+struct ipc_msg_payload_fs
+{
+	/* Minor device number */
+	uint32 dev_num;
+	/* Ioctl message type */
+	uint32 ioctl_msg;
+	/* Memory address of buffer in other process */
+	void *buf_address;
+};
+
 
 /* File System Driver Functions */
+void fs_init(void);
 void fs_message_dispatcher(void);
 
 #endif

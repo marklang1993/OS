@@ -77,11 +77,13 @@ static void hddp_descriptor_init(
 	}
 
 	/* Output partition descriptor information */
+/*
 	printk("base: %d, end: %d, cnt: %d, rev_cnt: %d\n",
 		ptr_descriptor->base_sector,
 		ptr_descriptor->last_sector,
 		ptr_descriptor->cnt_sectors,
 		ptr_descriptor->rev_sectors);
+*/
 }
 
 
@@ -170,11 +172,13 @@ static void calculate_hdd_base(
 	*ptr_base = base_addr;
 
 	/* Output partition descriptor information */
+/*
 	printk("base: %d, end: %d, cnt: %d, rev_cnt: %d\n",
 		ptr_descriptor->base_sector,
 		ptr_descriptor->last_sector,
 		ptr_descriptor->cnt_sectors,
 		ptr_descriptor->rev_sectors);
+*/
 }
 
 
@@ -201,9 +205,8 @@ static rtc hdd_op(
 	msg.type = IS_TRUE(is_read) ? HDD_MSG_READ : HDD_MSG_WRITE;
 	ptr_payload_hdd = (struct ipc_msg_payload_hdd *)msg.payload;
 	ptr_payload_hdd->dev_num = hdd_dev_num;
-	ptr_payload_hdd->base_low = (uint32)(pos & 0xffffffffull);
-	ptr_payload_hdd->base_high = (uint32)((pos & 0xffffffff00000000ull)
-					>> 32);
+	ptr_payload_hdd->base_low = UINT64_LOW(pos);
+	ptr_payload_hdd->base_high = UINT64_HIGH(pos);
 	ptr_payload_hdd->size = size;
 	ptr_payload_hdd->buf_address = buf;
 
@@ -285,11 +288,13 @@ static void read_part_table(uint32 hdd_dev_num)
 	comm_msg(DRV_PID_HDD, &msg);
 
 	/* Send IOCTL - PRINT_ID message to HDD driver */
+/*
 	msg.type = HDD_MSG_IOCTL;
 	ptr_payload_hdd = (struct ipc_msg_payload_hdd *)msg.payload;
 	ptr_payload_hdd->ioctl_msg = HDD_IMSG_PRINT_ID;
 	ptr_payload_hdd->dev_num = hdd_dev_num;
 	comm_msg(DRV_PID_HDD, &msg);
+*/
 
 	/* Read MBR partition table */
 	ret = hdd_op(
@@ -498,7 +503,6 @@ static void hddp_dev_ioctl(struct ipc_msg_payload_hddp *const param)
                 panic("HDDP - IOCTL RECEIVED UNKNOWN MESSAGE!\n");
                 break;
         }
-
 }
 
 

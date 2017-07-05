@@ -36,6 +36,7 @@ void tty_main(void);
 void user_main_A(void);
 void user_main_B(void);
 void user_main_C(void);
+void user_main_FS(void);
 
 /* 
  # Initialize GDT / LDT entry in kernel
@@ -240,9 +241,8 @@ static void kernel_init_user_process(uint32 pid, ptr_void_function p_func)
 	user_process[pid].is_interrupt = FALSE;
 	user_process[pid].proc_sending_to = NULL;
 	ret = cbuf_init(&user_process[pid].recv_queue, USER_PROCESS_COUNT, NULL, 0);
-	if (ret != OK) {
+	if (ret != OK)
 		panic("INIT. PROCESS FAILED!");
-	}
 }
 
 /*
@@ -264,6 +264,7 @@ static void kernel_init_dev(void)
 	/* Harddisk */
 	hdd_init();
 	hddp_init();
+	fs_init();
 
 	/* Keyboard */
 	keyboard_init();
@@ -306,6 +307,8 @@ void kernel_main(void)
 	kernel_init_user_process(1, &user_main_B);
 	kernel_init_user_process(2, &user_main_C);
 	kernel_init_user_process(3, &tty_main);
+	kernel_init_user_process(7, &user_main_FS);
+
 	kernel_init_user_process(DRV_PID_HDD, &hdd_message_dispatcher);
 	kernel_init_user_process(DRV_PID_HDDP, &hddp_message_dispatcher);
 	kernel_init_user_process(DRV_PID_FS, &fs_message_dispatcher);
@@ -328,6 +331,24 @@ void tty_main(void)
 
 
 /*
+ # Test User Process FS
+ */
+void user_main_FS(void)
+{
+	struct proc_msg msg;
+	struct ipc_msg_payload_fs *ptr_payload;
+
+	msg.type = FS_MSG_OPEN;
+	ptr_payload = (struct ipc_msg_payload_fs *)&msg.payload;
+	ptr_payload->dev_num = FS_DEV_NUM_GEN(1, 'a');
+	comm_msg(DRV_PID_FS, &msg);
+
+	printk("User Main FS Finished\n");
+	while(1);
+}
+
+
+/*
  # Test User Process A
  */
 void user_main_A(void)
@@ -345,7 +366,6 @@ void user_main_A(void)
 	cstr_to_vga_str(vmsg, msg);
 
 	while(1);
-
 	while(1)
 	{
 		row = 17;
@@ -387,7 +407,6 @@ void user_main_B(void)
 	cstr_to_vga_str(vmsg, msg);
 
 	while(1);
-
 	while(1)
 	{
 		row = 18;
@@ -427,7 +446,6 @@ void user_main_C(void)
 	cstr_to_vga_str(vmsg, msg);
 
 	while(1);
-
 	while(1)
 	{
 		row = 19;
