@@ -3,9 +3,20 @@
 #include "drivers/fs/fs.h"
 #include "drivers/fs/inode.h"
 
+/* File System Common macros */
+#define FS_MINIMUM_SECTORS	20	/* Minimum requirement of sectors */
+#define FS_CNT_DINODE_PER_BLOCK	(FS_BYTES_PER_BLOCK / DINODE_SIZE)
+#define FS_CNT_BIT_PER_BLOCK	(FS_BYTES_PER_BLOCK * 8)
+#define FS_DINODE_FB_RATIO	4	/* Ratio of dinode count and free blocks */
+
 /* Superblock */
 #define SUPERBLOCK_MAGIC_NUM	0x50415241
 #define SUPERBLOCK_IDX		0
+#define SUPERBLOCK_CNT		1	/* ! HARD CODE SIZE */
+
+/* Log block */
+#define LOGBLOCK_IDX		(SUPERBLOCK_IDX + SUPERBLOCK_CNT)
+#define LOGBLOCK_CNT		10
 
 /* File System Partition Status */
 #define FS_INVALID		0	/* Did not open */
@@ -14,6 +25,14 @@
 
 /* Calculate byte offset w.r.t block index */
 #define BLOCK2BYTE(block_idx)	(((uint64)block_idx) * FS_BYTES_PER_BLOCK)
+
+/* Get fs partition descriptor & Check open status */
+#define PRE_DEV_USE \
+	get_descriptor_ptr(param, &ptr_descriptor); \
+	if (0 == ptr_descriptor->ref_cnt) \
+		panic("FS - PARTITION %x NOT OPEN ERROR!\n", \
+			param->dev_num)
+
 
 /* Superblock struct */
 struct superblock {
@@ -39,7 +58,7 @@ struct fs_partition_descriptor
 {
 	uint32 status;		/* File system partition status */
 	uint32 ref_cnt;		/* Reference count */
-	uint32 block_cnt;	/* Especially, used by unrecognizable partition */
+	uint32 sector_cnt;	/* Especially, used by unrecognizable partition */
 	struct superblock sb;	/* Superblock */
 };
 
@@ -144,18 +163,17 @@ static void get_hddp_info(
 
 
 /*
- # FS_OPEN message handler
- @ param : fs partition open parameters
+ # Get pointer of fs partition descriptor
+ @ param         : fs partition parameters
+ @ pp_descriptor : pointer to pointer of fs partition descriptor
  */
-static void fs_dev_open(struct ipc_msg_payload_fs *param)
+static void get_descriptor_ptr(
+	const struct ipc_msg_payload_fs *param,
+	struct fs_partition_descriptor **const pp_descriptor
+)
 {
 	uint32 fs_mbr_index, fs_logical_index;
 	struct fs_partition_descriptor *ptr_descriptor;
-	struct ipc_msg_payload_hddp_get_info hddp_info;
-
-	struct proc_msg msg;
-	struct ipc_msg_payload_hddp *payload;
-	struct fs_hdd_op hdd_op_param;
 
 	/* Get partition table index */
 	fs_mbr_index = FS_GET_MBR_NUM(param->dev_num);
@@ -170,6 +188,32 @@ static void fs_dev_open(struct ipc_msg_payload_fs *param)
 		ptr_descriptor = &(fs_part_table[fs_mbr_index].
 			logicals[fs_logical_index - 1]);
 	}
+
+	/* Return descriptor pointer */
+	*pp_descriptor = ptr_descriptor;
+}
+
+
+/*
+ # FS_OPEN message handler
+ @ param : fs partition open parameters
+ */
+static void fs_dev_open(struct ipc_msg_payload_fs *param)
+{
+	struct fs_partition_descriptor *ptr_descriptor;
+	uint32 fs_mbr_index, fs_logical_index;
+	struct ipc_msg_payload_hddp_get_info hddp_info;
+
+	struct proc_msg msg;
+	struct ipc_msg_payload_hddp *payload;
+	struct fs_hdd_op hdd_op_param;
+
+	/* Get fs partition descriptor */
+	get_descriptor_ptr(param, &ptr_descriptor);
+
+	/* Get fs partition table index */
+	fs_mbr_index = FS_GET_MBR_NUM(param->dev_num);
+	fs_logical_index = FS_GET_LOGICAL_NUM(param->dev_num);
 
 	/* Check the ref_cnt */
 	if (0 == ptr_descriptor->ref_cnt) {
@@ -193,6 +237,7 @@ static void fs_dev_open(struct ipc_msg_payload_fs *param)
 			fs_logical_index,
 			&hddp_info
 			);
+		ptr_descriptor->sector_cnt = hddp_info.cnt_sectors;
 
 		/* Read superblock */
 		hdd_op_param.fs_mbr_index = fs_mbr_index;
@@ -207,17 +252,41 @@ static void fs_dev_open(struct ipc_msg_payload_fs *param)
 		if (SUPERBLOCK_MAGIC_NUM == ptr_descriptor->sb.magic_num) {
 			/* Recognized file system */
 			ptr_descriptor->status = FS_VALID;
-			printk("FS VALID\n");
+			printk("Superblock Contents:\n");
+			printk("Magic Number: 0x%x\tSize: %d\n",
+				ptr_descriptor->sb.magic_num,
+				ptr_descriptor->sb.size);
+			printk(" - Log: %d, %d\n",
+				ptr_descriptor->sb.log_start,
+				ptr_descriptor->sb.log_cnt);
+			printk(" - dinode Map: %d, %d\n",
+				ptr_descriptor->sb.dinode_map_start,
+				ptr_descriptor->sb.dinode_map_cnt);
+			printk(" - dinode: %d, %d\n",
+				ptr_descriptor->sb.dinode_start,
+				ptr_descriptor->sb.dinode_cnt);
+			printk(" - Data Map: %d, %d\n",
+				ptr_descriptor->sb.data_map_start,
+				ptr_descriptor->sb.data_map_cnt);
+			printk(" - Data: %d, %d\n",
+				ptr_descriptor->sb.data_start,
+				ptr_descriptor->sb.data_cnt);
+			printk(" - Total dinode Count: %d\n",
+				ptr_descriptor->sb.dinode_tot_cnt);
+
 		} else {
 			/* Unrecognizable file system */
 			ptr_descriptor->status = FS_UNRECOG;
 			printk("FS UNRECOG!\n");
 		}
+
 	} else {
 		/* Already Init. */
 		kassert(ptr_descriptor->status == FS_VALID);
-		ptr_descriptor->ref_cnt += 1;
 	}
+
+	/* Increase ref_cnt */
+	ptr_descriptor->ref_cnt += 1;
 }
 
 
@@ -243,7 +312,108 @@ void fs_init(void)
 }
 
 
-/* File System Driver Message Dispatcher */
+/*
+ # Make file system
+ @ param          : pointer to fs message payload
+ @ ptr_descriptor : pointer to fs partition descriptor
+ */
+static void fs_ioctl_mkfs(
+	struct ipc_msg_payload_fs *const param,
+	struct fs_partition_descriptor *ptr_descriptor
+)
+{
+	uint32 remained_block_cnt; /* Count of current remained free blocks */
+	uint32 dinode_tot_cnt; /* Total count of all dinode */
+	uint32 data_map_tot_cnt; /* Total count of data map blocks */
+	uint32 fs_mbr_index, fs_logical_index;
+	struct fs_hdd_op hdd_op_param;
+
+	/* Check minimum requirement of sectors */
+	if (ptr_descriptor->sector_cnt < FS_MINIMUM_SECTORS)
+		panic("FS - NO ENOUGH SPACE FOR MKFS!\n");
+	/* Build Superblock - Basic */
+	ptr_descriptor->sb.magic_num = SUPERBLOCK_MAGIC_NUM;
+	ptr_descriptor->sb.size = ptr_descriptor->sector_cnt / FS_FACTOR_BS;
+	ptr_descriptor->sb.log_start = LOGBLOCK_IDX;
+	ptr_descriptor->sb.log_cnt = LOGBLOCK_CNT;
+
+	remained_block_cnt = ptr_descriptor->sb.size;
+	/* Build Superblock - DINODE Map */
+	remained_block_cnt -= SUPERBLOCK_CNT + LOGBLOCK_CNT;
+	dinode_tot_cnt = ((remained_block_cnt / FS_DINODE_FB_RATIO) +
+			(FS_CNT_DINODE_PER_BLOCK - 1)) / FS_CNT_DINODE_PER_BLOCK *
+			FS_CNT_DINODE_PER_BLOCK; /* Round up */
+	ptr_descriptor->sb.dinode_tot_cnt = dinode_tot_cnt;
+	ptr_descriptor->sb.dinode_map_start = LOGBLOCK_IDX + LOGBLOCK_CNT;
+	ptr_descriptor->sb.dinode_map_cnt = (dinode_tot_cnt +
+				(FS_CNT_BIT_PER_BLOCK - 1)) /
+				FS_CNT_BIT_PER_BLOCK; /* Round up */
+
+	/* Build Superblock - DINODE */
+	remained_block_cnt -= ptr_descriptor->sb.dinode_map_cnt;
+	ptr_descriptor->sb.dinode_start = ptr_descriptor->sb.dinode_map_start +
+			ptr_descriptor->sb.dinode_map_cnt;
+	ptr_descriptor->sb.dinode_cnt = dinode_tot_cnt / FS_CNT_DINODE_PER_BLOCK;
+
+	/* Build Superblock - Data Map */
+	remained_block_cnt -= ptr_descriptor->sb.dinode_cnt;
+	kassert(remained_block_cnt <= 0xffffffff - FS_CNT_BIT_PER_BLOCK);
+	data_map_tot_cnt = remained_block_cnt + FS_CNT_BIT_PER_BLOCK; /* Round Up */
+	data_map_tot_cnt /= FS_CNT_BIT_PER_BLOCK + 1;
+	ptr_descriptor->sb.data_map_start = ptr_descriptor->sb.dinode_start +
+			ptr_descriptor->sb.dinode_cnt;
+	ptr_descriptor->sb.data_map_cnt = data_map_tot_cnt;
+
+	/* Build Superblock - Data */
+	remained_block_cnt -= ptr_descriptor->sb.data_map_cnt;
+	ptr_descriptor->sb.data_start = ptr_descriptor->sb.data_map_start +
+			ptr_descriptor->sb.data_map_cnt;
+	ptr_descriptor->sb.data_cnt = remained_block_cnt;
+
+	/* Get partition table index */
+	fs_mbr_index = FS_GET_MBR_NUM(param->dev_num);
+	fs_logical_index = FS_GET_LOGICAL_NUM(param->dev_num);
+
+	/* Write Superblock to the corresponding partition */
+	hdd_op_param.fs_mbr_index = fs_mbr_index;
+	hdd_op_param.fs_logical_index = fs_logical_index;
+	hdd_op_param.base = BLOCK2BYTE(SUPERBLOCK_IDX);
+	hdd_op_param.size = sizeof(struct superblock);
+	hdd_op_param.buf_address = &ptr_descriptor->sb;
+	hdd_op_param.is_read = FALSE;
+	hdd_op(&hdd_op_param);
+}
+
+
+/*
+ # FS_IOCTL message handler
+ @ param : File system partition ioctl parameters
+ */
+static void fs_dev_ioctl(struct ipc_msg_payload_fs *const param)
+{
+	struct fs_partition_descriptor *ptr_descriptor;
+
+	/* Get fs partition descriptor and check */
+	PRE_DEV_USE;
+
+	/* Determine ioctl message type */
+	switch (param->ioctl_msg) {
+
+	case FS_IMSG_MKFS:
+		/* Make file system */
+		fs_ioctl_mkfs(param, ptr_descriptor);
+		break;
+
+	default:
+		panic("FS - IOCTL RECEIVED UNKNOWN MESSAGE!\n");
+		break;
+	}
+}
+
+
+/*
+ # File System Driver Message Dispatcher
+ */
 void fs_message_dispatcher(void)
 {
 /*
@@ -307,7 +477,7 @@ void fs_message_dispatcher(void)
 			break;
 
 		case FS_MSG_IOCTL:
-			/* fs_dev_ioctl(ptr_payload); */
+			fs_dev_ioctl(ptr_payload);
 			break;
 
 		default:

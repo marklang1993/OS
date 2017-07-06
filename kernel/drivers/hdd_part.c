@@ -485,7 +485,7 @@ static void hddp_dev_ioctl(struct ipc_msg_payload_hddp *const param)
 {
 	struct hdd_partition_descriptor *ptr_descriptor;
 
-	/* Get hdd descriptor and check */
+	/* Get hdd partition descriptor and check */
 	PRE_DEV_USE;
 
 	/* Determine ioctl message type */

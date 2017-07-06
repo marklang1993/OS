@@ -19,7 +19,8 @@
 #define FS_IMSG_MKFS		0x10	/* Make File System */
 
 /* Common FS macros */
-#define FS_BYTES_PER_BLOCK	HDD_BYTES_PER_SECTOR
+#define FS_FACTOR_BS		1	/* Factor from Sector to Block */
+#define FS_BYTES_PER_BLOCK	(HDD_BYTES_PER_SECTOR * FS_FACTOR_BS)
 #define FS_MAX_MBR_P_CNT	HDDP_MAX_MBR_P_CNT
 
 /*
