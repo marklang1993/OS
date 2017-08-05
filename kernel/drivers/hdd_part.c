@@ -37,6 +37,71 @@ struct hdd_mbr_partition_descriptor
 static BOOL hddp_is_init = FALSE;
 /* Harddisk partition table */
 static struct hdd_mbr_partition_descriptor hdd_part_table[HDDP_MAX_MBR_P_CNT];
+/* HDD reference count */
+static uint32 hdd_ref_cnt[HDD_MAX_DRIVES];
+
+
+/*
+ # Get HDD device number
+ @ dev_num : hddp device number
+ @ RETURN  : HDD device number (ref. to hdd.h)
+ */
+static uint32 get_hdd_dev_num(uint32 dev_num)
+{
+	uint32 hdd_dev_num;
+
+	/* Calculate HDD device number */
+	hdd_dev_num = HDDP_GET_MBR_NUM(dev_num) / PART_MAX_PART_MBR;
+	/* Verify */
+	kassert(hdd_dev_num < HDD_MAX_DRIVES);
+	if (hdd_dev_num >= 2)
+		panic("HDDP - DOES NOT SUPPORT HDD_DEV_NUM %d\n", hdd_dev_num);
+
+	return hdd_dev_num;
+}
+
+
+/* Open/Close HDD device
+ @ hdd_dev_num : HDD device number
+ @ is_open_op  : is OPEN opeartion
+ */
+static rtc hdd_dev_oc(
+	uint32 hdd_dev_num,
+	BOOL is_open_op
+)
+{
+	struct proc_msg msg;
+	struct ipc_msg_payload_hdd *ptr_payload_hdd; /* HDD Driver Payload */
+	rtc ret;
+
+	if (IS_TRUE(is_open_op)) {
+		/* OPEN */
+		if (0 == hdd_ref_cnt[hdd_dev_num]) {
+			/* 1st time */
+			msg.type = HDD_MSG_OPEN;
+			ptr_payload_hdd = (struct ipc_msg_payload_hdd *)msg.payload;
+			ptr_payload_hdd->dev_num = hdd_dev_num;
+			ret = comm_msg(DRV_PID_HDD, &msg);
+		}
+		printk("HDD %d OPEN\n", hdd_dev_num);
+		hdd_ref_cnt[hdd_dev_num] += 1;
+	} else {
+		/* CLOSE */
+		kassert(hdd_ref_cnt != 0);
+		if (1 == hdd_ref_cnt[hdd_dev_num]) {
+			/* Last time */
+			msg.type = HDD_MSG_CLOSE;
+			ptr_payload_hdd = (struct ipc_msg_payload_hdd *)msg.payload;
+			ptr_payload_hdd->dev_num = hdd_dev_num;
+			ret = comm_msg(DRV_PID_HDD, &msg);
+		}
+		printk("HDD %d CLOSE\n", hdd_dev_num);
+		hdd_ref_cnt[hdd_dev_num] -= 1;
+	}
+
+	kassert(ret == OK);
+	return ret;
+}
 
 
 /*
@@ -238,8 +303,8 @@ static void hddp_dev_op(
 	uint32 hdd_dev_num; /* hdd minor device number */
 	rtc ret;
 
-	/* Determine: primary master HDD / primary slave HDD */
-	hdd_dev_num = HDDP_GET_MBR_NUM(param->dev_num) / PART_MAX_PART_MBR;
+	/* Get HDD device number */
+	hdd_dev_num = get_hdd_dev_num(param->dev_num);
 
 	/* Calculate hdd base address */
 	calculate_hdd_base(param, &hdd_base_address);
@@ -265,8 +330,6 @@ static void hddp_dev_op(
  */
 static void read_part_table(uint32 hdd_dev_num)
 {
-	struct proc_msg msg;
-	struct ipc_msg_payload_hdd *ptr_payload_hdd; /* HDD Driver Payload */
 	struct partition_table_entry main_part_table_buf[COUNT_M_PART_TABLE_ENTRY];
 	struct partition_table_entry logic_part_table_buf[COUNT_L_PART_TABLE_ENTRY];
 	struct hdd_partition_descriptor *ptr_last_mbr_part_descriptor;
@@ -281,11 +344,6 @@ static void read_part_table(uint32 hdd_dev_num)
 	hdd_part_table_base = hdd_dev_num * PART_MAX_PART_MBR;
 	/* Init. ptr_last_mbr_part_descriptor */
 	ptr_last_mbr_part_descriptor = NULL;
-	/* Send OPEN message to HDD driver */
-	msg.type = HDD_MSG_OPEN;
-	ptr_payload_hdd = (struct ipc_msg_payload_hdd *)msg.payload;
-	ptr_payload_hdd->dev_num = hdd_dev_num;
-	comm_msg(DRV_PID_HDD, &msg);
 
 	/* Send IOCTL - PRINT_ID message to HDD driver */
 /*
@@ -409,10 +467,15 @@ static void hddp_dev_open(const struct ipc_msg_payload_hddp *param)
 	uint32 hdd_part_table_base; /* hdd_part_table base index */
 	uint32 cnt_valid; /* count of valid mbr partition table entries */
 	struct hdd_partition_descriptor *ptr_descriptor;
+	rtc ret;
 	uint32 i;
 
-	/* Determine: primary master HDD / primary slave HDD */
-	hdd_dev_num = HDDP_GET_MBR_NUM(param->dev_num) / PART_MAX_PART_MBR;
+	/* Get HDD device number */
+	hdd_dev_num = get_hdd_dev_num(param->dev_num);
+
+	/* Open HDD driver with corresponding device number */
+	ret = hdd_dev_oc(hdd_dev_num, TRUE);
+
 	/* Locate the base index of entry in HDD Partition Table */
 	hdd_part_table_base = hdd_dev_num * PART_MAX_PART_MBR;
 
@@ -450,12 +513,18 @@ static void hddp_dev_open(const struct ipc_msg_payload_hddp *param)
 static void hddp_dev_close(const struct ipc_msg_payload_hddp *param)
 {
 	struct hdd_partition_descriptor *ptr_descriptor;
+	uint32 hdd_dev_num; /* hdd minor device number */
+	rtc ret;
 
 	/* Get hdd descriptor and check */
 	PRE_DEV_USE;
 
 	/* Reference count decrease */
 	ptr_descriptor->ref_cnt -= 1;
+
+	/* Do some clean */
+	hdd_dev_num = get_hdd_dev_num(param->dev_num); /* Get HDD device number */
+	ret = hdd_dev_oc(hdd_dev_num, FALSE);
 }
 
 
@@ -511,8 +580,11 @@ static void hddp_dev_ioctl(struct ipc_msg_payload_hddp *const param)
  */
 void hddp_init(void)
 {
-	/* Init. hdd partition table */
+	/* Init. HDD partition table */
 	memset(hdd_part_table, 0x0, sizeof(hdd_part_table));
+
+	/* Init. HDD reference count table */
+	memset(hdd_ref_cnt, 0x0, sizeof(memset));
 
 	/* Set Init. flag */
 	hddp_is_init = TRUE;
