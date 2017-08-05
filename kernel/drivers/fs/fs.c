@@ -210,7 +210,6 @@ static void fs_dev_open(struct ipc_msg_payload_fs *param)
 
 	/* Get fs partition descriptor */
 	get_descriptor_ptr(param, &ptr_descriptor);
-
 	/* Get fs partition table index */
 	fs_mbr_index = FS_GET_MBR_NUM(param->dev_num);
 	fs_logical_index = FS_GET_LOGICAL_NUM(param->dev_num);
@@ -296,6 +295,33 @@ static void fs_dev_open(struct ipc_msg_payload_fs *param)
 */
 static void fs_dev_close(struct ipc_msg_payload_fs *param)
 {
+	struct fs_partition_descriptor *ptr_descriptor;
+
+	struct proc_msg msg;
+	struct ipc_msg_payload_hddp *payload;
+
+	/* Get fs partition descriptor and check */
+	PRE_DEV_USE;
+
+	/* Decrease the reference count */
+	ptr_descriptor->ref_cnt -= 1;
+
+	/* Do some clean if this fs descriptor is no longer used */
+	if (0 == ptr_descriptor->ref_cnt) {
+		/* Clear the fs descriptor */
+		memset(ptr_descriptor, 0x0, sizeof(struct fs_partition_descriptor));
+		/* Close the corresponding hdd partition */
+		payload = (struct ipc_msg_payload_hddp *)msg.payload;
+		msg.type = HDDP_MSG_CLOSE;
+		payload->dev_num = HDDP_DEV_NUM_GEN(
+				FS_GET_MBR_NUM(param->dev_num),
+				LOGICAL_CONVERT(FS_GET_LOGICAL_NUM(param->dev_num))
+				);
+		comm_msg(DRV_PID_HDDP, &msg);
+		/* Check result */
+		if (HDDP_MSG_OK != msg.type)
+			panic("FS CLOSE DEV - CLOSE PARTITION ERROR!\n");
+	}
 }
 
 

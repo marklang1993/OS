@@ -2,6 +2,10 @@
 *.o
 *.bin
 *.img
+*.vdi
+
+# Non-public documents
+*.docx
 
 # Target Utilities
 partition
@@ -11,3 +15,6 @@ partition
 *.inc~
 *.h~
 *.c~
+
+# VSCode config files
+.vscode

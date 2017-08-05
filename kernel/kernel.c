@@ -351,6 +351,18 @@ void user_main_FS(void)
 	ptr_payload->ioctl_msg = FS_IMSG_MKFS;
 	comm_msg(DRV_PID_FS, &msg);
 
+	/* Close device */
+	msg.type = FS_MSG_CLOSE;
+	ptr_payload = (struct ipc_msg_payload_fs *)&msg.payload;
+	ptr_payload->dev_num = FS_DEV_NUM_GEN(1, 'a');
+	comm_msg(DRV_PID_FS, &msg);
+
+	/* Open device */
+	msg.type = FS_MSG_OPEN;
+	ptr_payload = (struct ipc_msg_payload_fs *)&msg.payload;
+	ptr_payload->dev_num = FS_DEV_NUM_GEN(1, 'a');
+	comm_msg(DRV_PID_FS, &msg);
+
 
 	printk("User Main FS Finished\n");
 	while(1);

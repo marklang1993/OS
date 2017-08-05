@@ -11,7 +11,7 @@
 #define DINODE_REF_CNT		(DINODE_DIRECT_CNT + DINODE_INDIRECT_CNT)
 
 /* dinode type */
-#define DINODE_INVALID		0
+#define DINODE_INVALID		0	/* It can also be EMPTY */
 #define DINODE_FILE		1
 #define DINODE_DIRECTORY	2
 #define DINODE_DEVICE		3
@@ -32,7 +32,7 @@ struct dinode {
 };
 #define DINODE_SIZE		sizeof(struct dinode)
 
-/* indirect block reference */
+/* Indirect block reference - will use an entire data block */
 struct indir_block_ref {
 	uint32 block_ref[FS_BYTES_PER_BLOCK / sizeof(uint32) - 1];
 	uint32 next_ref;	/* Next indir_block_ref */

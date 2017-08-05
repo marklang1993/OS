@@ -454,7 +454,7 @@ static void hddp_dev_close(const struct ipc_msg_payload_hddp *param)
 	/* Get hdd descriptor and check */
 	PRE_DEV_USE;
 
-	/* Reference count increase */
+	/* Reference count decrease */
 	ptr_descriptor->ref_cnt -= 1;
 }
 

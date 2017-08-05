@@ -13,7 +13,7 @@ struct inode {
 	uint32 major_dev;		/* Major Device Number */
 	uint32 minor_dev;		/* Minor Device Number */
 	uint32 inode_num;		/* inode Number (dinode Index...) */
-	uint32 ref_cnt;			/* Reference Count */
+	uint32 ref_cnt;			/* Reference Count - Open/Close */
 	uint32 status;			/* inode Status */
 
 	struct dinode disk_inode;	/* Disk inode Copy */
