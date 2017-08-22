@@ -2,7 +2,7 @@
 
 # Build Target
 K_OBJECTS = kernel_asm.o kernel_c.o proc.o interrupt_asm.o interrupt_c.o syscall_asm.o syscall_c.o ipc.o
-LIB_OBJECTS = dbg.o kheap.o memory.o buffer.o print.o printk.o io_port.o
+LIB_OBJECTS = dbg.o kheap.o memory.o buffer.o file.o print.o printk.o io_port.o
 DRV_OBJECTS = i8259a.o i8253.o keyboard.o vga.o tty.o hdd.o hdd_part.o fs.o
 OBJECTS = $(K_OBJECTS) $(LIB_OBJECTS) $(DRV_OBJECTS) 
 
@@ -84,6 +84,9 @@ memory.o : 	lib/memory.asm
 		$(ASM) $(ASM_ELF_FLAGS) -o $@ $<
 
 buffer.o :	lib/buffer.c
+		$(GCC) $(GCC_FLAGS) -o $@ $<
+
+file.o :	lib/file.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
 print.o : 	lib/print.c

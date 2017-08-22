@@ -4,7 +4,7 @@
 #ifndef _LIB_H_
 #define _LIB_H_
 
-#include "type.h"
+#include "errors.h"
 
 /* After spliting kernel and user space memory,
  * this should be set to non-zero value.
@@ -33,5 +33,17 @@ void print_uint32(uint32 value);
 void printb(uint32 *ptr_row, uint32 *ptr_col, const char **print_base);
 void printf(const char *format, ...);
 void printk(const char *format, ...);
+
+/* file.c */
+#define O_READ		0
+#define O_WRITE		1
+#define O_CREATE	2
+#define O_APPEND	4
+
+int32 open(const char *filename, uint32 flag);
+uint32 write(uint32 fd, const void *buf, uint32 size);
+uint32 read(uint32 fd, void *buf, uint32 size);
+rtc close(uint32 fd);
+rtc mkfs(uint8 mbr_index, uint8 logical_index);
 
 #endif
