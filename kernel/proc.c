@@ -22,6 +22,20 @@ struct process *current_user_process;
 extern uint32 int_global_reenter;
 
 /*
+ # Check the stack boundary after context switching
+ */
+void stack_checker(void)
+{
+	/* Check the current esp with the esp boundary */
+	uint32 current_esp = current_user_process->stack_frame.int_frame.esp;
+	uint32 esp_boundary = (uint32)(current_user_process->stack);
+
+	if (current_esp <= esp_boundary) {
+		panic("STACK OVERFLOW AT PID: %d\n", current_user_process->pid);
+	}
+}
+
+/*
  # Switch to next RUNNABLE process
  */
 void schedule(void)
@@ -60,6 +74,9 @@ void schedule(void)
 		current_pid = next_pid;
 
 	} while (current_user_process->status != PROC_RUNNABLE);
+
+	/* Check the stack boundary for the current user process */
+	stack_checker();
 
 	/* Put the status of new process to RUNNING */
 	current_user_process->status = PROC_RUNNING;
