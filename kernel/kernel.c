@@ -40,7 +40,7 @@ void user_main_FS(void);
 
 /* 
  # Initialize GDT / LDT entry in kernel
- @ dt         : descriptor table
+ @ dt_base    : descriptor table base address
  @ dte_no     : index of descriptor table entry
  @ base       : segment base address
  @ limit      : segment limit (20 bits)
@@ -48,19 +48,19 @@ void user_main_FS(void);
  */
 static void kernel_init_dt_entry
 (
-	struct descriptor *dt,
+	struct descriptor *dt_base,
 	uint32 dte_no,
 	uint32 base,
 	uint32 limit,
 	uint32 attributes
 )
 {
-	dt[dte_no].segment_limit_1 = (uint16)(limit & 0xffff);
-	dt[dte_no].base_address_1 = (uint16)(base & 0xffff);
-	dt[dte_no].base_address_2 = (uint8)((base >> 16) & 0xff);
-	dt[dte_no].attribute_1 = (uint8)(attributes & 0xff);
-	dt[dte_no].attribute_2 = (uint8)(((limit >> 16) & 0xf) | ((attributes >> 4) & 0xf0));
-	dt[dte_no].base_address_3 = (uint8)((base >> 24) & 0xff);
+	dt_base[dte_no].segment_limit_1 = (uint16)(limit & 0xffff);
+	dt_base[dte_no].base_address_1 = (uint16)(base & 0xffff);
+	dt_base[dte_no].base_address_2 = (uint8)((base >> 16) & 0xff);
+	dt_base[dte_no].attribute_1 = (uint8)(attributes & 0xff);
+	dt_base[dte_no].attribute_2 = (uint8)(((limit >> 16) & 0xf) | ((attributes >> 4) & 0xf0));
+	dt_base[dte_no].base_address_3 = (uint8)((base >> 24) & 0xff);
 }
 
 
@@ -202,23 +202,25 @@ static void kernel_init_idt(void)
 static void kernel_init_user_process(uint32 pid, ptr_void_function p_func)
 {
 	rtc ret;
+	struct descriptor *ldt_base;
 
 	/* Init. ldt in user process */
 	memset((void*)(user_process + pid), 0, sizeof(struct process));
+	ldt_base = &user_process[pid].ldt[0]; /* get base address of ldt for current process*/
 	kernel_init_dt_entry(
-			&user_process[pid].ldt[0],
+						ldt_base,
                         SEL_TO_IDX(KERNEL_LDT_CODE_SELECTOR),
                         0,
                         0xfffff,
                         TYPE_C_E + TYPE_C_R + S_DC + P_T + D_EC_32 + G_4KB + DPL_3
-                        );
+                        ); /* init. local descriptor for code segment */
 	kernel_init_dt_entry(
-			&user_process[pid].ldt[0],
+						ldt_base,
                         SEL_TO_IDX(KERNEL_LDT_DATA_SELECTOR),
                         0,
                         0xfffff,
                         TYPE_D_W + TYPE_D_R + S_DC + P_T + D_EC_32 + G_4KB + DPL_3
-                        );
+                        ); /* init. local descriptor for data segment */
 
 	/* Init. stack frame */
 	user_process[pid].stack_frame.gs = KERNEL_GDT_VIDEO_SELECTOR;
@@ -243,6 +245,8 @@ static void kernel_init_user_process(uint32 pid, ptr_void_function p_func)
 	ret = cbuf_init(&user_process[pid].recv_queue, USER_PROCESS_COUNT, NULL, 0);
 	if (ret != OK)
 		panic("INIT. PROCESS FAILED!");
+
+	memset(user_process[pid].file_desc, 0x0, sizeof(user_process[pid].file_desc));
 }
 
 /*

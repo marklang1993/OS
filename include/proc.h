@@ -15,6 +15,7 @@
 /* Process constants */
 #define PROCESS_NAME_LENGTH	16
 #define PROCESS_STACK_SIZE	0x400	/* 0x400 * 4 byte = 4 KB */
+#define PROCESS_FILE_DESC_COUNT 16
 #define USER_PROCESS_COUNT	8
 
 /* Process status */
@@ -67,6 +68,14 @@ struct process
 	BOOL is_interrupt;			/* Interrupt occur flag */
 	struct process *proc_sending_to; 	/* The process which the current process is sending to */
 	struct cbuf recv_queue;			/* Queue of all sending process */
+
+	/*
+	 * NOTE: default file descriptors
+	 * 0: stdin
+	 * 1: stdout
+	 * 2: stderr
+	 */
+	struct file_table_entry *file_desc[PROCESS_FILE_DESC_COUNT];	/* File descriptors owned by current process */
 };
 
 /* Process related Functions */

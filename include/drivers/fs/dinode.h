@@ -1,7 +1,7 @@
 #ifndef _FS_DINODE_H_
 #define _FS_DINODE_H_
 
-#include "type.h"
+#include "fs.h"
 
 #pragma pack(push, 1)
 

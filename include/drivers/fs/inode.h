@@ -3,6 +3,8 @@
 
 #include "drivers/fs/dinode.h"
 
+#define INODE_TABLE_COUNT 128 /* count of inode in inode table */
+
 /* inode status */
 #define INODE_INVALID	0	/* inode is invalid */
 #define INODE_VALID	1	/* inode is valid and resource is available */
@@ -18,5 +20,8 @@ struct inode {
 
 	struct dinode disk_inode;	/* Disk inode Copy */
 };
+
+/* inode related functions */
+void inode_init(void);
 
 #endif

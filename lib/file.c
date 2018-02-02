@@ -7,7 +7,7 @@
  @ flag     : operation flags
  @ RETURN   : -1 means failed, other number is the file descriptor index
  */
-int32 open(const char *filename, uint32 flag) {
+FILE open(const char *filename, FILE_OP_FLAG flag) {
 	return -1;
 }
 
@@ -16,8 +16,9 @@ int32 open(const char *filename, uint32 flag) {
  @ fd   : file descriptor index
  @ buf  : source buffer
  @ size : count of bytes
+ @ RETURN : actual write bytes
  */
-uint32 write(uint32 fd, const void *buf, uint32 size) {
+uint32 write(FILE fd, const void *buf, uint32 size) {
 	return 0;
 }
 
@@ -26,8 +27,9 @@ uint32 write(uint32 fd, const void *buf, uint32 size) {
  @ fd   : file descriptor index
  @ buf  : destination buffer
  @ size : count of bytes
+ @ RETURN : actual read bytes
  */
-uint32 read(uint32 fd, void *buf, uint32 size) {
+uint32 read(FILE fd, void *buf, uint32 size) {
 	return 0;
 }
 
@@ -35,7 +37,7 @@ uint32 read(uint32 fd, void *buf, uint32 size) {
  # Close a file
  @ fd     : file descriptor index
  */
-rtc close(uint32 fd) {
+rtc close(FILE fd) {
 	return OK;
 }
 
