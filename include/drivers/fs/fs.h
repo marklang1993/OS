@@ -17,6 +17,7 @@
 
 /* File System Driver Ioctl Message Type */
 #define FS_IMSG_MKFS		0x10	/* Make File System */
+#define FS_IMSG_OPEN_FILE	0x11	/* Open file */
 
 /* Common FS macros */
 #define FS_FACTOR_BS		1	/* Factor from Sector to Block */

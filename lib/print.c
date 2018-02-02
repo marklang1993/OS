@@ -88,7 +88,7 @@ void itoa(uint32 value, char *str, int base)
 /*
  # Calculate the length of a c-style string
  @ str: pointer to a c-style char array
-*/
+ */
 uint32 strlen(const char *str)
 {
 	uint32 length = 0;
@@ -101,10 +101,21 @@ uint32 strlen(const char *str)
 }
 
 /*
+ # Copy a c-style string
+ @ destination: dest. string
+ @ source: src. string
+ */
+void strcpy(char *destination, const char *source)
+{
+	uint32 length = strlen(source);
+	memcpy(destination, source, length);
+}
+
+/*
  # Set cursor location
  @ row : row position (0 ~ 24)
  @ col : column position (0 ~ 79)
-*/
+ */
 void print_set_location(uint32 row, uint32 col)
 {
 	// Validate

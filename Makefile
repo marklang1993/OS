@@ -3,8 +3,9 @@
 # Build Target
 K_OBJECTS = kernel_asm.o kernel_c.o proc.o interrupt_asm.o interrupt_c.o syscall_asm.o syscall_c.o ipc.o
 LIB_OBJECTS = dbg.o kheap.o memory.o buffer.o file.o print.o printk.o io_port.o
-DRV_OBJECTS = i8259a.o i8253.o keyboard.o vga.o tty.o hdd.o hdd_part.o fs.o inode.o
-OBJECTS = $(K_OBJECTS) $(LIB_OBJECTS) $(DRV_OBJECTS) 
+DRV_OBJECTS = i8259a.o i8253.o keyboard.o vga.o tty.o hdd.o hdd_part.o fs.o
+FS_OBJECTS = inode.o fs_lib.o
+OBJECTS = $(K_OBJECTS) $(LIB_OBJECTS) $(DRV_OBJECTS) $(FS_OBJECTS)
 
 TARGET_BOOT = boot.bin
 TARGET = loader.bin kernel.bin
@@ -123,6 +124,9 @@ fs.o :		kernel/drivers/fs/fs.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
 inode.o :	kernel/drivers/fs/inode.c
+		$(GCC) $(GCC_FLAGS) -o $@ $<
+
+fs_lib.o :	kernel/drivers/fs/fs_lib.c
 		$(GCC) $(GCC_FLAGS) -o $@ $<
 
 boot.bin : 	boot/boot.asm

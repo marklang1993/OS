@@ -24,6 +24,7 @@ void memset(void *ptr, uint32 val, uint32 size);
 uint32 abs(int32 n);
 void itoa(uint32 value, char *str, int base);
 uint32 strlen(const char *str);
+void strcpy(char *destination, const char *source);
 void print_set_location(uint32 row, uint32 col);
 void print_cstring_pos(const char *ptr_string, uint32 row, uint32 col); /* Used for c-style char array */
 void print_cstring(const char *ptr_string);				/* Used for c-style char array */

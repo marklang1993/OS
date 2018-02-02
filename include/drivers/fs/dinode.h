@@ -19,6 +19,9 @@
 /* Null reference */
 #define DINODE_REF_NULL		0
 
+/* Root directory dinode */
+#define DINODE_ROOT_DIRECTORY_IDX	0
+
 /* inode struct stored on disk */
 struct dinode {
 	uint16 type;				/* Resource Type */

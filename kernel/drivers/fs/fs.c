@@ -1,22 +1,7 @@
 #include "dbg.h"
 #include "lib.h"
 #include "drivers/fs/fs.h"
-#include "drivers/fs/file_desc.h"
-
-/* File System Common macros */
-#define FS_MINIMUM_SECTORS	20	/* Minimum requirement of sectors */
-#define FS_CNT_DINODE_PER_BLOCK	(FS_BYTES_PER_BLOCK / DINODE_SIZE)
-#define FS_CNT_BIT_PER_BLOCK	(FS_BYTES_PER_BLOCK * 8)
-#define FS_DINODE_FB_RATIO	4	/* Ratio of dinode count and free blocks */
-
-/* Superblock */
-#define SUPERBLOCK_MAGIC_NUM	0x50415241
-#define SUPERBLOCK_IDX		0
-#define SUPERBLOCK_CNT		1	/* ! HARD CODE SIZE */
-
-/* Log block */
-#define LOGBLOCK_IDX		(SUPERBLOCK_IDX + SUPERBLOCK_CNT)
-#define LOGBLOCK_CNT		10
+#include "drivers/fs/fs_lib.h"
 
 /* File System Partition Status */
 #define FS_INVALID		0	/* Did not open */
@@ -36,42 +21,6 @@
 	if (0 == ptr_descriptor->ref_cnt) \
 		panic("FS - PARTITION %x NOT OPEN ERROR!\n", \
 			param->dev_num)
-
-
-/* Superblock struct */
-struct superblock {
-	/* Meta Data */
-	uint32 magic_num;	/* Magic number */
-	uint32 size;		/* Size of this partition in blocks */
-	uint32 log_start;	/* Log block start position */
-	uint32 log_cnt;		/* Log block count */
-	uint32 dinode_map_start;/* dinode map block start position */
-	uint32 dinode_map_cnt;	/* dinode map block count */
-	uint32 dinode_start;	/* dinode block start position */
-	uint32 dinode_cnt;	/* dinode block count */
-	uint32 data_map_start;	/* Data blocks map block start position */
-	uint32 data_map_cnt;	/* Data blocks map block count */
-	uint32 data_start;	/* Data blocks block start position */
-	uint32 data_cnt;	/* Data blocks block count */
-	/* Other Data */
-	uint32 dinode_tot_cnt;	/* Total count of dinode */
-};
-
-/* FS partition descriptor */
-struct fs_partition_descriptor
-{
-	uint32 status;		/* File system partition status */
-	uint32 ref_cnt;		/* Reference count */
-	uint32 sector_cnt;	/* Especially, used by unrecognizable partition */
-	struct superblock sb;	/* Superblock */
-};
-
-/* FS MBR partition descriptor */
-struct fs_mbr_partition_descriptor
-{
-	struct fs_partition_descriptor main;
-	struct fs_partition_descriptor logicals[PART_MAX_L_PER_EX_PART];
-};
 
 /* HDD opeartion struct */
 struct fs_hdd_op
@@ -360,53 +309,20 @@ static void fs_ioctl_mkfs(
 	struct fs_partition_descriptor *ptr_descriptor
 )
 {
-	uint32 remained_block_cnt; /* Count of current remained free blocks */
-	uint32 dinode_tot_cnt; /* Total count of all dinode */
-	uint32 data_map_tot_cnt; /* Total count of data map blocks */
 	uint32 fs_mbr_index, fs_logical_index;
 	struct fs_hdd_op hdd_op_param;
+	struct *superblock sb_ptr = &ptr_descriptor->sb;
+	uint32 dummy_data[FS_BYTES_PER_BLOCK / 4];
+	void *dummy_block_ptr = &dummy_data[0];
 
-	/* Check minimum requirement of sectors */
-	if (ptr_descriptor->sector_cnt < FS_MINIMUM_SECTORS)
-		panic("FS - NO ENOUGH SPACE FOR MKFS!\n");
-	/* Build Superblock - Basic */
-	ptr_descriptor->sb.magic_num = SUPERBLOCK_MAGIC_NUM;
-	ptr_descriptor->sb.size = ptr_descriptor->sector_cnt / FS_FACTOR_BS;
-	ptr_descriptor->sb.log_start = LOGBLOCK_IDX;
-	ptr_descriptor->sb.log_cnt = LOGBLOCK_CNT;
+	int i;
 
-	remained_block_cnt = ptr_descriptor->sb.size;
-	/* Build Superblock - DINODE Map */
-	remained_block_cnt -= SUPERBLOCK_CNT + LOGBLOCK_CNT;
-	dinode_tot_cnt = ((remained_block_cnt / FS_DINODE_FB_RATIO) +
-			(FS_CNT_DINODE_PER_BLOCK - 1)) / FS_CNT_DINODE_PER_BLOCK *
-			FS_CNT_DINODE_PER_BLOCK; /* Round up */
-	ptr_descriptor->sb.dinode_tot_cnt = dinode_tot_cnt;
-	ptr_descriptor->sb.dinode_map_start = LOGBLOCK_IDX + LOGBLOCK_CNT;
-	ptr_descriptor->sb.dinode_map_cnt = (dinode_tot_cnt +
-				(FS_CNT_BIT_PER_BLOCK - 1)) /
-				FS_CNT_BIT_PER_BLOCK; /* Round up */
+	/* Init. */
+	memset(dummy_block_ptr, 0, sizeof(dummy_data));
 
-	/* Build Superblock - DINODE */
-	remained_block_cnt -= ptr_descriptor->sb.dinode_map_cnt;
-	ptr_descriptor->sb.dinode_start = ptr_descriptor->sb.dinode_map_start +
-			ptr_descriptor->sb.dinode_map_cnt;
-	ptr_descriptor->sb.dinode_cnt = dinode_tot_cnt / FS_CNT_DINODE_PER_BLOCK;
-
-	/* Build Superblock - Data Map */
-	remained_block_cnt -= ptr_descriptor->sb.dinode_cnt;
-	kassert(remained_block_cnt <= 0xffffffff - FS_CNT_BIT_PER_BLOCK);
-	data_map_tot_cnt = remained_block_cnt + FS_CNT_BIT_PER_BLOCK; /* Round Up */
-	data_map_tot_cnt /= FS_CNT_BIT_PER_BLOCK + 1;
-	ptr_descriptor->sb.data_map_start = ptr_descriptor->sb.dinode_start +
-			ptr_descriptor->sb.dinode_cnt;
-	ptr_descriptor->sb.data_map_cnt = data_map_tot_cnt;
-
-	/* Build Superblock - Data */
-	remained_block_cnt -= ptr_descriptor->sb.data_map_cnt;
-	ptr_descriptor->sb.data_start = ptr_descriptor->sb.data_map_start +
-			ptr_descriptor->sb.data_map_cnt;
-	ptr_descriptor->sb.data_cnt = remained_block_cnt;
+	/* 1. Build superblock */
+	printf("FS: Building superblock.");
+	build_superblock(ptr_descriptor);
 
 	/* Get partition table index */
 	fs_mbr_index = FS_GET_MBR_NUM(param->dev_num);
@@ -417,9 +333,39 @@ static void fs_ioctl_mkfs(
 	hdd_op_param.fs_logical_index = fs_logical_index;
 	hdd_op_param.base = BLOCK2BYTE(SUPERBLOCK_IDX);
 	hdd_op_param.size = sizeof(struct superblock);
-	hdd_op_param.buf_address = &ptr_descriptor->sb;
+	hdd_op_param.buf_address = sb_ptr;
 	hdd_op_param.is_read = FALSE;
 	hdd_op(&hdd_op_param);
+	printf("Done\n");
+
+	/* 2. TODO: Clean log blocks */
+
+	/* 3. Clean dinode bitmap blocks */
+	printf("FS: Clean dinode bitmap blocks.");
+	hdd_op_param.fs_mbr_index = fs_mbr_index;
+	hdd_op_param.fs_logical_index = fs_logical_index;
+	hdd_op_param.size = sizeof(dummy_data);
+	hdd_op_param.buf_address = dummy_block_ptr;
+	hdd_op_param.is_read = FALSE;
+	for(i = 0; i < sb_ptr->dinode_map_cnt; ++i)
+	{
+		hdd_op_param.base = BLOCK2BYTE(i + sb_ptr->dinode_map_start);
+		hdd_op(&hdd_op_param);
+	}
+	printf("Done\n");
+	
+	/* 4. Clean data bitmap blocks */
+	printf("FS: Clean data bitmap blocks.");
+	for(i = 0; i < sb_ptr->data_map_cnt; ++i)
+	{
+		hdd_op_param.base = BLOCK2BYTE(i + sb_ptr->data_map_start);
+		hdd_op(&hdd_op_param);
+	}
+	printf("Done\n");
+
+	/* 5. Init. 1st dinode */
+	printf("FS: Init. 1st dinode.");
+	printf("Done\n");
 }
 
 
