@@ -83,7 +83,7 @@ static rtc hdd_dev_oc(
 			ptr_payload_hdd->dev_num = hdd_dev_num;
 			ret = comm_msg(DRV_PID_HDD, &msg);
 		}
-		printk("HDD %d OPEN\n", hdd_dev_num);
+		/* printk("HDD %d OPEN\n", hdd_dev_num); */
 		hdd_ref_cnt[hdd_dev_num] += 1;
 	} else {
 		/* CLOSE */
@@ -95,7 +95,7 @@ static rtc hdd_dev_oc(
 			ptr_payload_hdd->dev_num = hdd_dev_num;
 			ret = comm_msg(DRV_PID_HDD, &msg);
 		}
-		printk("HDD %d CLOSE\n", hdd_dev_num);
+		/* printk("HDD %d CLOSE\n", hdd_dev_num); */
 		hdd_ref_cnt[hdd_dev_num] -= 1;
 	}
 
@@ -612,7 +612,7 @@ void hddp_message_dispatcher(void)
 		recv_msg(IPC_PROC_ALL, &msg);
 		src = msg.src;
 		ptr_payload = (struct ipc_msg_payload_hddp *)msg.payload;
-		printk("HDDP MSG TYPE: 0x%x\n", msg.type);
+		/* printk("HDDP MSG TYPE: 0x%x\n", msg.type); */
 
 		/* Get partition table index */
 		hddp_mbr_index = HDDP_GET_MBR_NUM(ptr_payload->dev_num);

@@ -1,5 +1,7 @@
 #include "dbg.h"
 #include "type.h"
+#include "drivers/fs/directory.h"
+#include "drivers/fs/fs.h"
 #include "drivers/fs/fs_lib.h"
 
 /*
@@ -53,4 +55,31 @@ void build_superblock(struct fs_partition_descriptor *ptr_descriptor)
 	ptr_descriptor->sb.data_start = ptr_descriptor->sb.data_map_start +
 			ptr_descriptor->sb.data_map_cnt;
 	ptr_descriptor->sb.data_cnt = remained_block_cnt;
+}
+
+/*
+ # Build 1st dinode on a full data block
+ * buffer: a full data block with size of FS_BYTES_PER_BLOCK
+ */
+void build_1st_dinode(byte *ptr_buffer)
+{
+/*
+	printf("size of buffer: %d\n", sizeof(ptr_buffer));
+	printf("address of buffer: 0x%x\n", ptr_buffer);
+*/
+	struct dinode root;
+
+	/* Clean buffer of data block & dinode */
+	memset(ptr_buffer, 0, FS_BYTES_PER_BLOCK);
+
+	/* Init. 1st dinode */
+	root.type = DINODE_DIRECTORY;
+	root.link_cnt = 1;
+	root.major_dev = 0;
+	root.minor_dev = 0;
+	root.size = 0;
+
+	/* Write 1st dinode to the buffer */
+	/* printf("size of dinode is: %d\n", sizeof(struct dinode)); */
+	memcpy(ptr_buffer, &root, sizeof(struct dinode));
 }

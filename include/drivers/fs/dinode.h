@@ -12,7 +12,7 @@
 
 /* dinode type */
 #define DINODE_INVALID		0	/* It can also be EMPTY */
-#define DINODE_FILE		1
+#define DINODE_FILE			1
 #define DINODE_DIRECTORY	2
 #define DINODE_DEVICE		3
 
@@ -20,12 +20,18 @@
 #define DINODE_REF_NULL		0
 
 /* Root directory dinode */
-#define DINODE_ROOT_DIRECTORY_IDX	0
+#define DINODE_ROOT_DIRE_IDX	0
 
 /* inode struct stored on disk */
 struct dinode {
 	uint16 type;				/* Resource Type */
-	uint16 link_cnt;			/* Count of Links to this dinode */
+	/*
+	 * Count of Links to this dinode
+	 * Rules:
+	 * 1. Any valid dinode must have at least 1;
+	 * 2. Root dinode that is not referred by any dinode has link_cnt = 1
+	 */
+	uint16 link_cnt;
 	/* Used by DINODE_DEVICE */
 	uint32 major_dev;			/* Major Device Number */
 	uint32 minor_dev;			/* Minor Device Number */

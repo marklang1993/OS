@@ -9,7 +9,7 @@
 #define FS_VALID		2	/* Open, all operations are available */
 
 /* Calculate byte offset w.r.t block index */
-#define BLOCK2BYTE(block_idx)	(((uint64)block_idx) * FS_BYTES_PER_BLOCK)
+#define BLOCK2BYTE(block_idx)	(((uint64)(block_idx)) * FS_BYTES_PER_BLOCK)
 
 #define COPY_BUF(dst, src, size) \
 	kassert(!ENABLE_SPLIT_KUSPACE); \
@@ -206,6 +206,8 @@ static void fs_dev_open(struct ipc_msg_payload_fs *param)
 		if (SUPERBLOCK_MAGIC_NUM == ptr_descriptor->sb.magic_num) {
 			/* Recognized file system */
 			ptr_descriptor->status = FS_VALID;
+
+			/*
 			printk("Superblock Contents:\n");
 			printk("Magic Number: 0x%x\tSize: %d\n",
 				ptr_descriptor->sb.magic_num,
@@ -227,7 +229,7 @@ static void fs_dev_open(struct ipc_msg_payload_fs *param)
 				ptr_descriptor->sb.data_cnt);
 			printk(" - Total dinode Count: %d\n",
 				ptr_descriptor->sb.dinode_tot_cnt);
-
+			*/
 		} else {
 			/* Unrecognizable file system */
 			ptr_descriptor->status = FS_UNRECOG;
@@ -311,14 +313,20 @@ static void fs_ioctl_mkfs(
 {
 	uint32 fs_mbr_index, fs_logical_index;
 	struct fs_hdd_op hdd_op_param;
-	struct *superblock sb_ptr = &ptr_descriptor->sb;
-	uint32 dummy_data[FS_BYTES_PER_BLOCK / 4];
+	struct superblock *sb_ptr = &ptr_descriptor->sb;
+	byte dummy_data[FS_BYTES_PER_BLOCK];
 	void *dummy_block_ptr = &dummy_data[0];
+	byte *tmp_block_ptr = &dummy_data[0];
 
 	int i;
+/*
+	printk("dummy_data SIZE: %d\n", sizeof(dummy_data));
+	printk("address of dummy_data start: 0x%x\n", (uint32)(&dummy_data[0]));
+	printk("address of dummy_data end: 0x%x\n", (uint32)(&dummy_data[FS_BYTES_PER_BLOCK - 1]));
+*/
 
 	/* Init. */
-	memset(dummy_block_ptr, 0, sizeof(dummy_data));
+	memset(dummy_block_ptr, 0xcc, sizeof(dummy_data));
 
 	/* 1. Build superblock */
 	printf("FS: Building superblock.");
@@ -349,7 +357,8 @@ static void fs_ioctl_mkfs(
 	hdd_op_param.is_read = FALSE;
 	for(i = 0; i < sb_ptr->dinode_map_cnt; ++i)
 	{
-		hdd_op_param.base = BLOCK2BYTE(i + sb_ptr->dinode_map_start);
+		// hdd_op_param.base = BLOCK2BYTE(i + sb_ptr->dinode_map_start);
+		hdd_op_param.base = BLOCK2BYTE(1);
 		hdd_op(&hdd_op_param);
 	}
 	printf("Done\n");
@@ -363,8 +372,23 @@ static void fs_ioctl_mkfs(
 	}
 	printf("Done\n");
 
-	/* 5. Init. 1st dinode */
+	/* 5. Init. 1st dinode with root directory data block */
 	printf("FS: Init. 1st dinode.");
+	build_1st_dinode(tmp_block_ptr);
+	/* Write to harddisk */
+	hdd_op_param.buf_address = tmp_block_ptr;
+	hdd_op_param.base = BLOCK2BYTE(sb_ptr->dinode_start);
+	hdd_op(&hdd_op_param);
+	printf("Done\n");
+
+	/* 6. Update dinode bitmap */
+	printf("FS: Update dinode bitmap.");
+	memset(tmp_block_ptr, 0, sizeof(dummy_data));
+	dummy_data[0] = 1;
+	/* Write to harddisk */
+	hdd_op_param.buf_address = tmp_block_ptr;
+	hdd_op_param.base = BLOCK2BYTE(sb_ptr->dinode_map_start);
+	hdd_op(&hdd_op_param);
 	printf("Done\n");
 }
 
@@ -432,7 +456,7 @@ void fs_message_dispatcher(void)
 		recv_msg(IPC_PROC_ALL, &msg);
 		src = msg.src;
 		ptr_payload = (struct ipc_msg_payload_fs *)msg.payload;
-		printk("FS MSG TYPE: 0x%x\n", msg.type);
+		/* printk("FS MSG TYPE: 0x%x\n", msg.type); */
 
 		/* Get partition table index */
 		fs_mbr_index = FS_GET_MBR_NUM(ptr_payload->dev_num);
