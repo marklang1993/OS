@@ -326,7 +326,7 @@ static void fs_ioctl_mkfs(
 */
 
 	/* Init. */
-	memset(dummy_block_ptr, 0xcc, sizeof(dummy_data));
+	memset(dummy_block_ptr, 0x0, sizeof(dummy_data));
 
 	/* 1. Build superblock */
 	printf("FS: Building superblock.");
@@ -357,8 +357,7 @@ static void fs_ioctl_mkfs(
 	hdd_op_param.is_read = FALSE;
 	for(i = 0; i < sb_ptr->dinode_map_cnt; ++i)
 	{
-		// hdd_op_param.base = BLOCK2BYTE(i + sb_ptr->dinode_map_start);
-		hdd_op_param.base = BLOCK2BYTE(1);
+		hdd_op_param.base = BLOCK2BYTE(i + sb_ptr->dinode_map_start);
 		hdd_op(&hdd_op_param);
 	}
 	printf("Done\n");

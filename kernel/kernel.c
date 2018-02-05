@@ -340,7 +340,7 @@ void tty_main(void)
 void user_main_FS(void)
 {
 	/* Make file system on partition 1 - extended "a" */
-	mkfs(1, 'b');
+	mkfs(1, 'a');
 
 	printk("User Main FS Finished\n");
 	while(1);
