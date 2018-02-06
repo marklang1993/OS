@@ -56,6 +56,19 @@ struct fs_mbr_partition_descriptor
 
 
 /* File system driver library functions */
-void build_superblock(struct fs_partition_descriptor *ptr_descriptor);
+void fslib_build_superblock(struct fs_partition_descriptor *ptr_descriptor);
+void fslib_build_1st_dinode(byte *ptr_buffer);
+
+typedef uint32 FILELIB_OP_FLAG; /* File Operation Flags */
+#define FLIB_O_READ		0
+#define FLIB_O_WRITE	1
+#define FLIB_O_CREATE	2
+#define FLIB_O_APPEND	4
+int32 fslib_open_file(
+	const char *path,
+	FILELIB_OP_FLAG mode,
+	uint32 src_pid,
+	const struct fs_partition_descriptor *ptr_descriptor
+);
 
 #endif

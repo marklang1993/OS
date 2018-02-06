@@ -5,7 +5,7 @@
 #define _LIB_H_
 
 #include "errors.h"
-#include "drivers/fs/file_desc.h"
+#include "drivers/fs/fs_lib.h"
 
 /* After spliting kernel and user space memory,
  * this should be set to non-zero value.
@@ -37,17 +37,17 @@ void printf(const char *format, ...);
 void printk(const char *format, ...);
 
 /* file.c */
-typedef int32 FILE_OP_FLAG; /* File Operation Flags */
-#define O_READ		0
-#define O_WRITE		1
-#define O_CREATE	2
-#define O_APPEND	4
+typedef FILELIB_OP_FLAG FILE_OP_FLAG; /* File Operation Flags */
+#define O_READ		FLIB_O_READ
+#define O_WRITE		FLIB_O_WRITE
+#define O_CREATE	FLIB_O_CREATE
+#define O_APPEND	FLIB_O_APPEND
 
 #define STDIN       FILE_STDIN
 #define STDOUT      FILE_STDOUT
 #define STDERR      FILE_STDERR
 
-typedef uint32 FILE;
+typedef int32 FILE;
 FILE open(const char *filename, FILE_OP_FLAG flag);
 uint32 write(FILE fd, const void *buf, uint32 size);
 uint32 read(FILE fd, void *buf, uint32 size);

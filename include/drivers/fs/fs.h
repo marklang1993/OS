@@ -18,11 +18,19 @@
 /* File System Driver Ioctl Message Type */
 #define FS_IMSG_MKFS		0x10	/* Make File System */
 #define FS_IMSG_OPEN_FILE	0x11	/* Open file */
+struct ipc_msg_payload_fs_open_file
+{
+	const char *path;
+	uint32 mode;
+};
 
 /* Common FS macros */
-#define FS_FACTOR_BS		1	/* Factor from Sector to Block */
-#define FS_BYTES_PER_BLOCK	(HDD_BYTES_PER_SECTOR * FS_FACTOR_BS)
-#define FS_MAX_MBR_P_CNT	HDDP_MAX_MBR_P_CNT
+#define FS_FACTOR_BS				1	/* Factor from Sector to Block */
+#define FS_BYTES_PER_BLOCK			(HDD_BYTES_PER_SECTOR * FS_FACTOR_BS)
+#define FS_MAX_MBR_P_CNT			HDDP_MAX_MBR_P_CNT
+#define FS_MAX_PATH_LENGTH			256
+#define FS_SYSROOT_MBR_IDX			1
+#define FS_SYSROOT_LOGICAL_IDX		'a'
 
 /*
  # File System Device Number Generator

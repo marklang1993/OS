@@ -4,11 +4,13 @@
 #include "drivers/fs/fs.h"
 #include "drivers/fs/fs_lib.h"
 
+
+
 /*
  # Build superblock by given partition info.
  * ptr_descriptor: file system partition descriptor
  */
-void build_superblock(struct fs_partition_descriptor *ptr_descriptor)
+void fslib_build_superblock(struct fs_partition_descriptor *ptr_descriptor)
 {
     uint32 remained_block_cnt; /* Count of current remained free blocks */
 	uint32 dinode_tot_cnt; /* Total count of all dinode */
@@ -61,7 +63,7 @@ void build_superblock(struct fs_partition_descriptor *ptr_descriptor)
  # Build 1st dinode on a full data block
  * buffer: a full data block with size of FS_BYTES_PER_BLOCK
  */
-void build_1st_dinode(byte *ptr_buffer)
+void fslib_build_1st_dinode(byte *ptr_buffer)
 {
 /*
 	printf("size of buffer: %d\n", sizeof(ptr_buffer));
@@ -82,4 +84,22 @@ void build_1st_dinode(byte *ptr_buffer)
 	/* Write 1st dinode to the buffer */
 	/* printf("size of dinode is: %d\n", sizeof(struct dinode)); */
 	memcpy(ptr_buffer, &root, sizeof(struct dinode));
+}
+
+/*
+ # Open a file
+ * path          : file path
+ * mode          : open mode
+ * src_pid       : caller's pid
+ * ptr_descriptor: file system partition descriptor
+ @ RETURN	     : file descriptor id in the caller's process; -1 when error
+ */
+int32 fslib_open_file(
+	const char *path,
+	FILELIB_OP_FLAG mode,
+	uint32 src_pid,
+	const struct fs_partition_descriptor *ptr_descriptor
+)
+{
+
 }

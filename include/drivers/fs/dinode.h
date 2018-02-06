@@ -47,6 +47,12 @@ struct indir_block_ref {
 	uint32 next_ref;	/* Next indir_block_ref */
 };
 
+/* dinode related functions */
+int32 get_dinode();	/* Get a free dinode */
+void put_dinode();	/* Free a used dinode */
+BOOL read_dinode(uint32 index, struct dinode *out_dinode); /* read a dinode on the disk */
+BOOL write_dinode(uint32 index, const struct dinode *in_dinode); /* write a dinode on the disk */
+
 #pragma pack(pop)
 
 #endif

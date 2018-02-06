@@ -1,6 +1,5 @@
 #include "dbg.h"
 #include "lib.h"
-#include "drivers/fs/fs.h"
 #include "drivers/fs/fs_lib.h"
 
 /* File System Partition Status */
@@ -330,7 +329,7 @@ static void fs_ioctl_mkfs(
 
 	/* 1. Build superblock */
 	printf("FS: Building superblock.");
-	build_superblock(ptr_descriptor);
+	fslib_build_superblock(ptr_descriptor);
 
 	/* Get partition table index */
 	fs_mbr_index = FS_GET_MBR_NUM(param->dev_num);
@@ -373,7 +372,7 @@ static void fs_ioctl_mkfs(
 
 	/* 5. Init. 1st dinode with root directory data block */
 	printf("FS: Init. 1st dinode.");
-	build_1st_dinode(tmp_block_ptr);
+	fslib_build_1st_dinode(tmp_block_ptr);
 	/* Write to harddisk */
 	hdd_op_param.buf_address = tmp_block_ptr;
 	hdd_op_param.base = BLOCK2BYTE(sb_ptr->dinode_start);
@@ -394,11 +393,19 @@ static void fs_ioctl_mkfs(
 
 /*
  # FS_IOCTL message handler
- @ param : File system partition ioctl parameters
+ @ param   : File system partition ioctl parameters
+ @ src_pid : Caller's pid 
  */
-static void fs_dev_ioctl(struct ipc_msg_payload_fs *const param)
+static int32 fs_dev_ioctl(
+	struct ipc_msg_payload_fs *const param,
+	uint32 src_pid
+	)
 {
+	struct proc_msg msg;
 	struct fs_partition_descriptor *ptr_descriptor;
+	/* Used for FS_IMSG_OPEN_FILE */
+	struct ipc_msg_payload_fs_open_file fs_open_file_payload;
+	char path[FS_MAX_PATH_LENGTH];
 
 	/* Get fs partition descriptor and check */
 	PRE_DEV_USE;
@@ -411,10 +418,30 @@ static void fs_dev_ioctl(struct ipc_msg_payload_fs *const param)
 		fs_ioctl_mkfs(param, ptr_descriptor);
 		break;
 
+	case FS_IMSG_OPEN_FILE:
+		/* Open a file */
+		COPY_BUF(
+			&fs_open_file_payload,
+			param->buf_address,
+			sizeof(struct ipc_msg_payload_fs_open_file)
+		);
+		COPY_BUF(
+			path,
+			fs_open_file_payload.path,
+			FS_MAX_PATH_LENGTH
+		);
+		return fslib_open_file(
+			path,
+			fs_open_file_payload.mode,
+			src_pid,
+			ptr_descriptor
+		);
+
 	default:
 		panic("FS - IOCTL RECEIVED UNKNOWN MESSAGE!\n");
 		break;
 	}
+	return 0;
 }
 
 
@@ -484,7 +511,8 @@ void fs_message_dispatcher(void)
 			break;
 
 		case FS_MSG_IOCTL:
-			fs_dev_ioctl(ptr_payload);
+			/* Append return value */
+			msg.payload[0] = (uint32)fs_dev_ioctl(ptr_payload, src);
 			break;
 
 		default:
