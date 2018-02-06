@@ -74,6 +74,7 @@ struct process
 	 * 0: stdin
 	 * 1: stdout
 	 * 2: stderr
+	 * 3: cwd (current working directory)
 	 */
 	struct file_table_entry *file_desc[PROCESS_FILE_DESC_COUNT];	/* File descriptors owned by current process */
 };

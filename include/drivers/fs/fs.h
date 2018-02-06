@@ -58,6 +58,9 @@ struct ipc_msg_payload_fs_open_file
  */
 #define FS_GET_LOGICAL_NUM(dev_number)	HDDP_GET_LOGICAL_NUM(dev_number)
 
+/* Calculate byte offset w.r.t block index */
+#define FS_BLOCK2BYTE(block_idx)	(((uint64)(block_idx)) * FS_BYTES_PER_BLOCK)
+
 /* File System Driver Message Payload */
 struct ipc_msg_payload_fs
 {

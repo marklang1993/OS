@@ -101,6 +101,39 @@ uint32 strlen(const char *str)
 }
 
 /*
+ # Compare 2 c-style strings
+ @ str1: string 1
+ @ str2: string 2
+ @ RETURN: 0 is same, others are different
+ */
+int32 strcmp(const char *str1, const char *str2)
+{
+	uint32 length1 = strlen(str1);
+	uint32 length2 = strlen(str2);
+	int32 diff = ((int32)length1) - ((int32)length2);
+	int32 i;
+
+	if (0 == diff) {
+		/* same length */
+		for (i = 0; i < length1; ++i)
+		{
+			if (str1[i] == str2[i]) {
+				/* same character at i-th */
+				continue;
+			} else {
+				/* different character at i-th */
+				return ((int32)str1[i]) - ((int32)str2[i]);
+			}
+		}
+		return 0;
+
+	} else {
+		/* different */
+		return diff;
+	}
+}
+
+/*
  # Copy a c-style string
  @ destination: dest. string
  @ source: src. string

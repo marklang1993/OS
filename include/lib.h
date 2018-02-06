@@ -24,6 +24,7 @@ void memset(void *ptr, uint32 val, uint32 size);
 uint32 abs(int32 n);
 void itoa(uint32 value, char *str, int base);
 uint32 strlen(const char *str);
+int32 strcmp(const char *str1, const char *str2);
 void strcpy(char *destination, const char *source);
 void print_set_location(uint32 row, uint32 col);
 void print_cstring_pos(const char *ptr_string, uint32 row, uint32 col); /* Used for c-style char array */
@@ -40,7 +41,6 @@ void printk(const char *format, ...);
 typedef FILELIB_OP_FLAG FILE_OP_FLAG; /* File Operation Flags */
 #define O_READ		FLIB_O_READ
 #define O_WRITE		FLIB_O_WRITE
-#define O_CREATE	FLIB_O_CREATE
 #define O_APPEND	FLIB_O_APPEND
 
 #define STDIN       FILE_STDIN

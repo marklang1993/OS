@@ -1,14 +1,12 @@
 #include "dbg.h"
 #include "lib.h"
 #include "drivers/fs/fs_lib.h"
+#include "drivers/fs/file_desc.h"
 
 /* File System Partition Status */
 #define FS_INVALID		0	/* Did not open */
 #define FS_UNRECOG		1	/* Open, but cannot r/w, limited ioctl */
 #define FS_VALID		2	/* Open, all operations are available */
-
-/* Calculate byte offset w.r.t block index */
-#define BLOCK2BYTE(block_idx)	(((uint64)(block_idx)) * FS_BYTES_PER_BLOCK)
 
 #define COPY_BUF(dst, src, size) \
 	kassert(!ENABLE_SPLIT_KUSPACE); \
@@ -21,59 +19,12 @@
 		panic("FS - PARTITION %x NOT OPEN ERROR!\n", \
 			param->dev_num)
 
-/* HDD opeartion struct */
-struct fs_hdd_op
-{
-	uint32 fs_mbr_index;	/* FS partition mbr index */
-	uint32 fs_logical_index;/* FS partition logic index */
-	uint64 base;		/* Base position of hdd operation */
-	uint32 size;		/* Size of buffer */
-	void *buf_address;	/* Buffer address */
-	BOOL is_read;		/* Is read operation */
-};
-
 /* FS internal global variables */
 static BOOL fs_is_init = FALSE;	/* Flag: is file system driver initialized */
 static struct fs_mbr_partition_descriptor fs_part_table[FS_MAX_MBR_P_CNT];	/* FS partition table */
 
 /* FS global variables */
 struct file_table_entry file_table[FILE_TABLE_SIZE];	/* File Table */
-
-
-/*
- # HDD operation (r/w) in bytes
- @ param : operation parameters
- */
-static void hdd_op(const struct fs_hdd_op *param)
-{
-	struct proc_msg msg;
-	struct ipc_msg_payload_hddp *payload;
-	struct ipc_msg_payload_hddp_get_info *ret_payload;
-
-	payload = (struct ipc_msg_payload_hddp *)msg.payload;
-
-	/* Prepare message */
-	msg.type = IS_TRUE(param->is_read) ? HDDP_MSG_READ : HDDP_MSG_WRITE;
-	payload->dev_num = HDDP_DEV_NUM_GEN(
-			param->fs_mbr_index,
-			LOGICAL_CONVERT(param->fs_logical_index)
-			);
-	payload->is_reserved = FALSE;
-	payload->base_low = UINT64_LOW(param->base);
-	payload->base_high = UINT64_HIGH(param->base);
-	payload->size = param->size;
-	payload->buf_address = param->buf_address;
-	comm_msg(DRV_PID_HDDP, &msg);
-
-	/* Check result */
-	if (HDDP_MSG_OK != msg.type) {
-		if (param->is_read) {
-			panic("FS - HDDP READ ERROR!\n");
-		} else {
-			panic("FS - HDDP WRITE ERROR!\n");
-		}
-	}
-}
 
 
 /*
@@ -114,7 +65,6 @@ static void get_hddp_info(
 		sizeof(struct ipc_msg_payload_hddp_get_info)
 		);
 }
-
 
 /*
  # Get pointer of fs partition descriptor
@@ -191,15 +141,17 @@ static void fs_dev_open(struct ipc_msg_payload_fs *param)
 			&hddp_info
 			);
 		ptr_descriptor->sector_cnt = hddp_info.cnt_sectors;
+		ptr_descriptor->mbr_index = fs_mbr_index;
+		ptr_descriptor->logical_index = fs_logical_index;
 
 		/* Read superblock */
 		hdd_op_param.fs_mbr_index = fs_mbr_index;
 		hdd_op_param.fs_logical_index = fs_logical_index;
-		hdd_op_param.base = BLOCK2BYTE(SUPERBLOCK_IDX);
+		hdd_op_param.base = FS_BLOCK2BYTE(SUPERBLOCK_IDX);
 		hdd_op_param.size = sizeof(struct superblock);
 		hdd_op_param.buf_address = &ptr_descriptor->sb;
 		hdd_op_param.is_read = TRUE;
-		hdd_op(&hdd_op_param);
+		fslib_hdd_op(&hdd_op_param);
 
 		/* Check the magic number */
 		if (SUPERBLOCK_MAGIC_NUM == ptr_descriptor->sb.magic_num) {
@@ -310,12 +262,8 @@ static void fs_ioctl_mkfs(
 	struct fs_partition_descriptor *ptr_descriptor
 )
 {
-	uint32 fs_mbr_index, fs_logical_index;
-	struct fs_hdd_op hdd_op_param;
 	struct superblock *sb_ptr = &ptr_descriptor->sb;
-	byte dummy_data[FS_BYTES_PER_BLOCK];
-	void *dummy_block_ptr = &dummy_data[0];
-	byte *tmp_block_ptr = &dummy_data[0];
+	struct fs_data_block tmp_block;
 
 	int i;
 /*
@@ -325,69 +273,68 @@ static void fs_ioctl_mkfs(
 */
 
 	/* Init. */
-	memset(dummy_block_ptr, 0x0, sizeof(dummy_data));
+	memset(&tmp_block, 0x0, sizeof(struct fs_data_block));
 
 	/* 1. Build superblock */
-	printf("FS: Building superblock.");
+	/* printf("FS: Building superblock."); */
 	fslib_build_superblock(ptr_descriptor);
-
-	/* Get partition table index */
-	fs_mbr_index = FS_GET_MBR_NUM(param->dev_num);
-	fs_logical_index = FS_GET_LOGICAL_NUM(param->dev_num);
-
 	/* Write Superblock to the corresponding partition */
-	hdd_op_param.fs_mbr_index = fs_mbr_index;
-	hdd_op_param.fs_logical_index = fs_logical_index;
-	hdd_op_param.base = BLOCK2BYTE(SUPERBLOCK_IDX);
-	hdd_op_param.size = sizeof(struct superblock);
-	hdd_op_param.buf_address = sb_ptr;
-	hdd_op_param.is_read = FALSE;
-	hdd_op(&hdd_op_param);
-	printf("Done\n");
+	fslib_write_bytes(
+		SUPERBLOCK_IDX,
+		ptr_descriptor,
+		sb_ptr,
+		sizeof(struct superblock)
+	);
+	/* printf("Done\n"); */
 
 	/* 2. TODO: Clean log blocks */
 
 	/* 3. Clean dinode bitmap blocks */
-	printf("FS: Clean dinode bitmap blocks.");
-	hdd_op_param.fs_mbr_index = fs_mbr_index;
-	hdd_op_param.fs_logical_index = fs_logical_index;
-	hdd_op_param.size = sizeof(dummy_data);
-	hdd_op_param.buf_address = dummy_block_ptr;
-	hdd_op_param.is_read = FALSE;
+	/* printf("FS: Clean dinode bitmap blocks."); */
 	for(i = 0; i < sb_ptr->dinode_map_cnt; ++i)
 	{
-		hdd_op_param.base = BLOCK2BYTE(i + sb_ptr->dinode_map_start);
-		hdd_op(&hdd_op_param);
+		fslib_write_block(
+			i + sb_ptr->dinode_map_start,
+			ptr_descriptor,
+			&tmp_block
+		);
 	}
-	printf("Done\n");
+	/* printf("Done\n"); */
 	
 	/* 4. Clean data bitmap blocks */
-	printf("FS: Clean data bitmap blocks.");
+	/* printf("FS: Clean data bitmap blocks."); */
 	for(i = 0; i < sb_ptr->data_map_cnt; ++i)
 	{
-		hdd_op_param.base = BLOCK2BYTE(i + sb_ptr->data_map_start);
-		hdd_op(&hdd_op_param);
+		fslib_write_block(
+			i + sb_ptr->data_map_start,
+			ptr_descriptor,
+			&tmp_block
+		);
 	}
-	printf("Done\n");
+	/* printf("Done\n"); */
 
 	/* 5. Init. 1st dinode with root directory data block */
-	printf("FS: Init. 1st dinode.");
-	fslib_build_1st_dinode(tmp_block_ptr);
+	/* printf("FS: Init. 1st dinode."); */
+	fslib_build_1st_dinode((byte *)(&tmp_block));
 	/* Write to harddisk */
-	hdd_op_param.buf_address = tmp_block_ptr;
-	hdd_op_param.base = BLOCK2BYTE(sb_ptr->dinode_start);
-	hdd_op(&hdd_op_param);
-	printf("Done\n");
+	fslib_write_block(
+		sb_ptr->dinode_start,
+		ptr_descriptor,
+		&tmp_block
+	);
+	/* printf("Done\n"); */
 
 	/* 6. Update dinode bitmap */
-	printf("FS: Update dinode bitmap.");
-	memset(tmp_block_ptr, 0, sizeof(dummy_data));
-	dummy_data[0] = 1;
+	/* printf("FS: Update dinode bitmap."); */
+	memset(&tmp_block, 0, sizeof(struct fs_data_block));
+	tmp_block.data[0] = 1;
 	/* Write to harddisk */
-	hdd_op_param.buf_address = tmp_block_ptr;
-	hdd_op_param.base = BLOCK2BYTE(sb_ptr->dinode_map_start);
-	hdd_op(&hdd_op_param);
-	printf("Done\n");
+	fslib_write_block(
+		sb_ptr->dinode_map_start,
+		ptr_descriptor,
+		&tmp_block
+	);
+	/* printf("Done\n"); */
 }
 
 

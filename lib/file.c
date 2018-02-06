@@ -26,7 +26,7 @@ FILE open(const char *filename, FILE_OP_FLAG flag) {
 	ptr_payload->dev_num = dev_num;
 	comm_msg(DRV_PID_FS, &msg);
 
-	/* Send MKFS message to FS driver */
+	/* Send OPEN_FILE message to FS driver */
     msg.type = FS_MSG_IOCTL;
 	ptr_payload->dev_num = dev_num;
 	ptr_payload->ioctl_msg = FS_IMSG_OPEN_FILE;
@@ -78,7 +78,7 @@ rtc close(FILE fd) {
 		((uint32)FS_SYSROOT_LOGICAL_IDX)
 		);
 
-	/* Send CLOSE message to FS driver */
+	/* Send CLOSE_FILE message to FS driver */
 	
 	/* Close FS device */
 	msg.type = FS_MSG_CLOSE;

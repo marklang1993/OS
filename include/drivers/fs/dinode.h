@@ -1,7 +1,7 @@
 #ifndef _FS_DINODE_H_
 #define _FS_DINODE_H_
 
-#include "fs.h"
+#include "drivers/fs/fs_lib.h"
 
 #pragma pack(push, 1)
 
@@ -39,19 +39,42 @@ struct dinode {
 	uint32 size;				/* File Size in Bytes */
 	uint32 block_ref[DINODE_REF_CNT];	/* Block References */
 };
-#define DINODE_SIZE		sizeof(struct dinode)
+#define DINODE_SIZE			sizeof(struct dinode)
 
 /* Indirect block reference - will use an entire data block */
+#define DINODE_INREF_CNT	(FS_BYTES_PER_BLOCK / sizeof(uint32) - 1)
 struct indir_block_ref {
-	uint32 block_ref[FS_BYTES_PER_BLOCK / sizeof(uint32) - 1];
+	uint32 block_ref[DINODE_INREF_CNT];
 	uint32 next_ref;	/* Next indir_block_ref */
 };
 
-/* dinode related functions */
-int32 get_dinode();	/* Get a free dinode */
-void put_dinode();	/* Free a used dinode */
-BOOL read_dinode(uint32 index, struct dinode *out_dinode); /* read a dinode on the disk */
-BOOL write_dinode(uint32 index, const struct dinode *in_dinode); /* write a dinode on the disk */
+/* Disk Inode Related Functions */
+/* Get a free dinode */
+int32 get_dinode(const struct fs_partition_descriptor *ptr_descriptor);
+/* Free a used dinode */
+void put_dinode(
+	uint32 index,
+	const struct fs_partition_descriptor *ptr_descriptor
+);
+/* Read a dinode on the disk */
+BOOL read_dinode(
+	uint32 index,
+	const struct fs_partition_descriptor *ptr_descriptor,
+	struct dinode *out_dinode
+);
+/* Write a dinode to the disk */
+BOOL write_dinode(
+	uint32 index,
+	const struct fs_partition_descriptor *ptr_descriptor,
+	const struct dinode *in_dinode
+);
+/* Read data block pointed by given dinode and given cursor */
+BOOL dinode_read_data_block(
+	const struct dinode *ptr_dinode,
+	uint32 cur_data_block,
+	const struct fs_partition_descriptor *ptr_descriptor,
+	struct fs_data_block *out_data_block
+);
 
 #pragma pack(pop)
 

@@ -339,8 +339,12 @@ void tty_main(void)
  */
 void user_main_FS(void)
 {
+	FILE fp;
+
 	/* Make file system on partition 1 - extended "a" */
 	mkfs(FS_SYSROOT_MBR_IDX, FS_SYSROOT_LOGICAL_IDX);
+
+	fp = open("/etc/1/2.txt", O_READ);
 
 	printk("User Main FS Finished\n");
 	while(1);
