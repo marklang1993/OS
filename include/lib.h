@@ -26,6 +26,8 @@ void itoa(uint32 value, char *str, int base);
 uint32 strlen(const char *str);
 int32 strcmp(const char *str1, const char *str2);
 void strcpy(char *destination, const char *source);
+const char* strchr(const char *str, int character);
+const char* strrchr(const char *str, int character);
 void print_set_location(uint32 row, uint32 col);
 void print_cstring_pos(const char *ptr_string, uint32 row, uint32 col); /* Used for c-style char array */
 void print_cstring(const char *ptr_string);				/* Used for c-style char array */

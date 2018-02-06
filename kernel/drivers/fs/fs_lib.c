@@ -25,7 +25,6 @@ static int32 get_next_dinode_index(
 	if (NOT(IS_TRUE(ret))) {
 		/* probably file system error, must panic */
 		panic("DINODE %d DOES NOT EXIST!\n", cur_dinode_index);
-		return -1;
 	}
 
 	return search_dinode_by_directory(&cur_dinode, name, ptr_descriptor);
@@ -34,20 +33,25 @@ static int32 get_next_dinode_index(
 /*
  # Parse a path (TODO: support relative path, currently only full path is supported)
  * path          : full file path
+ * mode          : file open mode
  * ptr_descriptor: file system partition descriptor
  @ RETURN        : target dinode index
  */
 static int32 parse_path(
 	const char *path,
+	FILELIB_OP_FLAG mode,
 	const struct fs_partition_descriptor *ptr_descriptor
 )
 {
 	char cur_name[FS_MAX_PATH_LENGTH];
 	uint32 len_path = strlen(path);
 	int32 dinode_index = DINODE_ROOT_DIRE_IDX; /* Assume: start from root directory */
+	/* position of last occurance of the slash */
+	const char *ptr_pos_last;
+	uint32 pos_last;
 
-	int32 i, j;
-	int32 cnt;
+	uint32 i, j;
+	uint32 cnt;
 
 	/* Check path length */
 	if (len_path >= FS_MAX_PATH_LENGTH) {
@@ -56,11 +60,17 @@ static int32 parse_path(
 		panic("PATH LENGTH IS 1.\n");
 	}
 
+	/* Get position of last occurance of the slash */
+	ptr_pos_last = strrchr(path, '/');
+	pos_last = (uint32)ptr_pos_last - (uint32)path;
+	/* printk("last occurance is %d\n", pos_last); */
+
+	/* Traverse the path */
 	for(i = 0; i < len_path; ++i)
 	{
 		if (path[i] == '/'){
 			/* Find target file OR next directory */
-			i = i + 1; /* skip the slash */
+			i = i + 1; /* Skip the slash */
 			for (j = i; j < len_path; ++j)
 			{
 				if (path[j] == '/'){
@@ -69,27 +79,48 @@ static int32 parse_path(
 				}
 			}
 			/* path[i] ~ path[j] is the file name OR next directory name */
-			/* construct that name */
+			/* Construct that name */
 			cnt = j - i + 1; /* calculate length of (current) name */
 			memcpy(cur_name, &path[i], cnt);
 			cur_name[cnt] = '\0';
-			printk("current file name: %s\n", cur_name);
+			/* printk("current file name: %s\n", cur_name); */
 
-			/* find next "file" */
+			/* Find next "file" */
 			dinode_index = get_next_dinode_index(cur_name, dinode_index, ptr_descriptor);
-			printk("%s dinode_index = %d\n", cur_name, dinode_index);
+			/* printk("%s dinode_index = %d\n", cur_name, dinode_index); */
+
+			/* Check the results */
 			if (dinode_index < 0) {
-				panic("GET NEXT DINODE INDEX FAILED\n");
+				/* The dinode with the current name does not exist */
+				if ((i - 1) == pos_last) {
+					/* This name should be a file name */
+					if (mode == 0) {
+						/* Mode is READ - error */
+						panic("FILE DOES NOT EXIST.");
+						return -1;
+
+					} else {
+						/* Mode is WRITE or APPEND - Need to create the target file*/
+						panic("CREATE THE FILE");
+					}
+
+				} else {
+					/* The directory does not exist */
+					panic("DIRECTORY DOES NOT EXIST");
+					return -1;
+				}
 			}
+
 			/* update i */
 			i = j;
 
 		} else {
+			/* Should NOT get to there */
 			panic("PATH IS INVALID - %s\n", path);
 		}
 	}
 
-	return -1;
+	return dinode_index;
 }
 
 /*
@@ -376,5 +407,5 @@ int32 fslib_open_file(
 	const struct fs_partition_descriptor *ptr_descriptor
 )
 {
-	int32 dinode_index = parse_path(path, ptr_descriptor);
+	int32 dinode_index = parse_path(path, mode, ptr_descriptor);
 }

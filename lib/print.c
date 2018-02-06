@@ -145,6 +145,52 @@ void strcpy(char *destination, const char *source)
 }
 
 /*
+ # Find char in a string
+ @ str      : src. string
+ @ character: target character
+ # RETURN   : pointer to the 1st occurance of that char
+ */
+const char* strchr(const char *str, int character)
+{
+	uint32 length = strlen(str);
+	uint32 i;
+	char a;
+
+	for (i = 0; i < length; ++i)
+	{
+		a = *(str + i);
+		if (a == character)
+		{
+			return (str + i);
+		}
+	}
+	return NULL;
+}
+
+/*
+ # Find char in a string
+ @ str      : src. string
+ @ character: target character
+ # RETURN   : pointer to the last occurance of that char
+ */
+const char* strrchr(const char *str, int character)
+{
+	uint32 length = strlen(str);
+	int32 i; /* i will be -1 in the following for-loop */
+	char a;
+
+	for (i = length - 1; i >= 0; --i)
+	{
+		a = *(str + i);
+		if (a == character)
+		{
+			return (str + i);
+		}
+	}
+	return NULL;
+}
+
+/*
  # Set cursor location
  @ row : row position (0 ~ 24)
  @ col : column position (0 ~ 79)

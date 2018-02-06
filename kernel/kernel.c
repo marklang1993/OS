@@ -344,7 +344,7 @@ void user_main_FS(void)
 	/* Make file system on partition 1 - extended "a" */
 	mkfs(FS_SYSROOT_MBR_IDX, FS_SYSROOT_LOGICAL_IDX);
 
-	fp = open("/etc/1/2.txt", O_READ);
+	fp = open("/test.txt", O_WRITE);
 
 	printk("User Main FS Finished\n");
 	while(1);
