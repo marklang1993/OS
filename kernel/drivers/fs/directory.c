@@ -3,7 +3,7 @@
 
 /*
  # Search dinode by directory name
- * ptr_dinode    : dinode that is being searched
+ * ptr_dinode    : directory dinode that is being searched
  * name          : directory name
  * ptr_descriptor: file system partition descriptor
  @ RETURN        : next dinode index, -1 when error
@@ -59,4 +59,21 @@ int32 search_dinode_by_directory(
 
     /* Does not find out */
     return -1;
+}
+
+/*
+ # Insert an directory entry to the given directory dinode
+ * ptr_dinode    : directory dinode that is being inserted
+ * name          : directory entry name (directory OR file) name
+ * dinode_index  : related dinode index
+ * ptr_descriptor: file system partition descriptor
+ */
+BOOL insert_directory_entry(
+    const struct dinode *ptr_dinode, 
+    const char* name,
+    int32 dinode_index,
+    const struct fs_partition_descriptor *ptr_descriptor
+)
+{
+    return FALSE;
 }

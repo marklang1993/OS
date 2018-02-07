@@ -123,6 +123,17 @@ BOOL fslib_write_data_block(
 	const struct fs_data_block *in_data_block
 );
 
+/* Find an empty bit in a bitmap block */
+int32 fslib_find_empty_bitmap_block(
+	const struct fs_data_block *bitmap_block
+);
+/* Set a bit in a bitmap block */
+void fslib_set_bitmap_block(
+	uint32 index,
+	BOOL val,
+	struct fs_data_block *bitmap_block
+);
+
 /* library functions used in mkfs() */
 void fslib_build_superblock(struct fs_partition_descriptor *ptr_descriptor);
 void fslib_build_1st_dinode(byte *ptr_buffer);

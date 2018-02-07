@@ -6,31 +6,6 @@
 #include "drivers/fs/fs_lib.h"
 
 /*
- # Find next dinode index
- * name:             next directory OR file name
- * cur_dinode_index: current dinode index
- * ptr_descriptor:   file system partition descriptor
- @ RETURN: next dinode index, -1 when error
- */
-static int32 get_next_dinode_index(
-	const char *name,
-	uint32 cur_dinode_index,
-	const struct fs_partition_descriptor *ptr_descriptor
-)
-{
-	BOOL ret;
-	struct dinode cur_dinode;
-
-	ret = read_dinode(cur_dinode_index, ptr_descriptor, &cur_dinode);
-	if (NOT(IS_TRUE(ret))) {
-		/* probably file system error, must panic */
-		panic("DINODE %d DOES NOT EXIST!\n", cur_dinode_index);
-	}
-
-	return search_dinode_by_directory(&cur_dinode, name, ptr_descriptor);
-}
-
-/*
  # Parse a path (TODO: support relative path, currently only full path is supported)
  * path          : full file path
  * mode          : file open mode
@@ -43,15 +18,18 @@ static int32 parse_path(
 	const struct fs_partition_descriptor *ptr_descriptor
 )
 {
-	char cur_name[FS_MAX_PATH_LENGTH];
 	uint32 len_path = strlen(path);
+	char cur_name[FS_MAX_PATH_LENGTH];
+	struct dinode cur_dinode;
 	int32 dinode_index = DINODE_ROOT_DIRE_IDX; /* Assume: start from root directory */
+	int32 next_dinode_index = -1;
 	/* position of last occurance of the slash */
 	const char *ptr_pos_last;
 	uint32 pos_last;
 
 	uint32 i, j;
 	uint32 cnt;
+	BOOL ret;
 
 	/* Check path length */
 	if (len_path >= FS_MAX_PATH_LENGTH) {
@@ -78,6 +56,7 @@ static int32 parse_path(
 					break;
 				}
 			}
+
 			/* path[i] ~ path[j] is the file name OR next directory name */
 			/* Construct that name */
 			cnt = j - i + 1; /* calculate length of (current) name */
@@ -86,11 +65,16 @@ static int32 parse_path(
 			/* printk("current file name: %s\n", cur_name); */
 
 			/* Find next "file" */
-			dinode_index = get_next_dinode_index(cur_name, dinode_index, ptr_descriptor);
-			/* printk("%s dinode_index = %d\n", cur_name, dinode_index); */
+			ret = read_dinode(dinode_index, ptr_descriptor, &cur_dinode);
+			if (NOT(IS_TRUE(ret))) {
+				/* probably this is a file system error, must panic */
+				panic("READ DINODE %d ERROR!\n", dinode_index);
+			}
+			next_dinode_index = search_dinode_by_directory(&cur_dinode, cur_name, ptr_descriptor);
+			/* printk("%s next_dinode_index = %d\n", cur_name, next_dinode_index); */
 
 			/* Check the results */
-			if (dinode_index < 0) {
+			if (next_dinode_index < 0) {
 				/* The dinode with the current name does not exist */
 				if ((i - 1) == pos_last) {
 					/* This name should be a file name */
@@ -100,8 +84,19 @@ static int32 parse_path(
 						return -1;
 
 					} else {
-						/* Mode is WRITE or APPEND - Need to create the target file*/
-						panic("CREATE THE FILE");
+						/* Mode is WRITE or APPEND - Need to create the target file */
+						/*
+						 * 1. Find & Occupy a free dinode
+						 * 2. Create a directory entry
+						 * 3. Update directory record
+						 * 4. Return that dinode index
+						 */
+
+						/* 1. Find & Occupy a free dinode */
+						next_dinode_index = get_dinode(ptr_descriptor);
+						/* 2. Create a directory entry */
+						panic("TODO");
+
 					}
 
 				} else {
@@ -111,8 +106,9 @@ static int32 parse_path(
 				}
 			}
 
-			/* update i */
+			/* update i & dinode_index */
 			i = j;
+			dinode_index = next_dinode_index;
 
 		} else {
 			/* Should NOT get to there */
@@ -120,7 +116,8 @@ static int32 parse_path(
 		}
 	}
 
-	return dinode_index;
+	/* File exists */
+	return next_dinode_index;
 }
 
 /*
@@ -310,6 +307,75 @@ BOOL fslib_write_data_block(
 		ptr_descriptor,
 		in_data_block
 	);
+}
+
+/*
+ # Find an empty bit in a bitmap block
+ * bitmap_block: bitmap block
+ * RETURN:       empty bit index, -1 when the bitmap is full
+ */
+int32 fslib_find_empty_bitmap_block(
+	const struct fs_data_block *bitmap_block
+)
+{
+	uint32 byte_idx, bit_idx;
+	byte cur_byte;
+
+	/* Find within 1 block */
+	for (byte_idx = 0; byte_idx < FS_BYTES_PER_BLOCK; ++byte_idx)  {
+		cur_byte = bitmap_block->data[byte_idx];
+		/* Find within 1 byte */
+		for (bit_idx = 0; bit_idx < 8; ++bit_idx) {
+			if ((cur_byte & 0x1) == 0)
+			{
+				/* Empty bit found */
+				return (byte_idx * 8 + bit_idx);
+			}
+			/* Not found -> shift to next bit */
+			cur_byte = (byte)(cur_byte >> 1);
+		}
+	}
+
+	/* All bits are used */
+	return -1;
+}
+
+/*
+ # Set a bit in a bitmap block
+ * index: bit index
+ * val  : value of bit to be set
+ * bitmap_block: bitmap block
+ */
+void fslib_set_bitmap_block(
+	uint32 index,
+	BOOL val,
+	struct fs_data_block *bitmap_block
+)
+{
+	uint32 byte_idx, bit_idx;
+	byte byte_in_block;
+	byte mask;
+
+	/* Check boundary */
+	kassert(index < (FS_BYTES_PER_BLOCK * 8));
+
+	/* Calculate */
+	byte_idx = index / 8;
+	bit_idx = index % 8;
+
+	if (IS_TRUE(val)) {
+		mask = (byte)(1 << bit_idx);
+		/* Set to 1 */
+		byte_in_block = bitmap_block->data[byte_idx];
+		byte_in_block = (byte)(byte_in_block | mask);
+		bitmap_block->data[byte_idx] = byte_in_block;
+	} else {
+		mask = (byte)(~(1 << bit_idx));
+		/* Set to 0 */
+		byte_in_block = bitmap_block->data[byte_idx];
+		byte_in_block = (byte)(byte_in_block & mask);
+		bitmap_block->data[byte_idx] = byte_in_block;
+	}
 }
 
 /*

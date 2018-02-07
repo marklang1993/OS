@@ -25,5 +25,11 @@ int32 search_dinode_by_directory(
     const char* name,
     const struct fs_partition_descriptor *ptr_descriptor
 );
+BOOL insert_directory_entry(
+    const struct dinode *ptr_dinode, 
+    const char* name,
+    int32 dinode_index,
+    const struct fs_partition_descriptor *ptr_descriptor
+);
 
 #endif
