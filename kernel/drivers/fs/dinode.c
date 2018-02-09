@@ -25,7 +25,7 @@ void init_dinode(struct dinode *ptr_dinode)
 /*
  # Get a free dinode
  * ptr_descriptor: file system partition descriptor
- @ RETURN        : free dinode
+ @ RETURN        : index of free dinode
  */
 int32 get_dinode(const struct fs_partition_descriptor *ptr_descriptor)
 {
@@ -78,17 +78,22 @@ void put_dinode(
     ;
 }
 
-/* Read a dinode on the disk */
+/*
+ # Read a dinode on the disk
+ * index         : index of dinode, NOT the block index of dinode
+ * ptr_descriptor: file system partition descriptor
+ * out_dinode    : dinode read from disk
+ */
 BOOL read_dinode(
 	uint32 index,
 	const struct fs_partition_descriptor *ptr_descriptor,
 	struct dinode *out_dinode
 )
 {
-    uint32 block_index = ptr_descriptor->sb.dinode_start + (index / DINODE_SIZE);
-	uint32 offset = (index % DINODE_SIZE) * DINODE_SIZE;
+    uint32 block_index = ptr_descriptor->sb.dinode_start + (index / FS_CNT_DINODE_PER_BLOCK);
+	uint32 offset = (index % FS_CNT_DINODE_PER_BLOCK) * DINODE_SIZE;
 	struct fs_data_block data_block;
-	byte *ptr_inode_block = (byte *)(&data_block);
+	byte *ptr_dinode_block = (byte *)(&data_block);
 	BOOL ret;
 
 	/* Read corresponding dinode block */
@@ -98,22 +103,51 @@ BOOL read_dinode(
 		&data_block
 	);
 	if (IS_TRUE(ret)) {
-		/* copy the corresponding dinode */
-		memcpy(out_dinode, offset + ptr_inode_block, DINODE_SIZE);
+		/* Copy the corresponding dinode */
+		memcpy(out_dinode, ptr_dinode_block + offset, DINODE_SIZE);
 		return TRUE;
 	}
 	return FALSE;
 }
 
-/* Write a dinode to the disk */
+/*
+ # Write a dinode to the disk
+ * index         : index of dinode, NOT the block index of dinode
+ * ptr_descriptor: file system partition descriptor
+ * in_dinode     : dinode written to disk
+ */
 BOOL write_dinode(
 	uint32 index,
 	const struct fs_partition_descriptor *ptr_descriptor,
 	const struct dinode *in_dinode
 )
 {
-	kassert(FALSE);
-    return FALSE;
+	uint32 block_index = ptr_descriptor->sb.dinode_start + (index / FS_CNT_DINODE_PER_BLOCK);
+	uint32 offset = (index % FS_CNT_DINODE_PER_BLOCK) * DINODE_SIZE;
+	struct fs_data_block data_block;
+	byte *ptr_dinode_block = (byte *)(&data_block);
+	BOOL ret;
+
+	/* Read corresponding dinode block */
+	ret = fslib_read_block(
+		block_index,
+		ptr_descriptor,
+		&data_block
+	);
+	if (IS_TRUE(ret)) {
+		/* Copy the corresponding dinode */
+		memcpy(ptr_dinode_block + offset, in_dinode, DINODE_SIZE);
+		/* Write back to disk */
+		ret = fslib_write_block(
+			block_index,
+			ptr_descriptor,
+			&data_block
+		);
+		if (IS_TRUE(ret)) {
+			return TRUE;
+		}
+	}
+	return FALSE;
 }
 
 /*
