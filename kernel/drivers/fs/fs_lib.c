@@ -94,6 +94,9 @@ static int32 parse_path(
 
 						/* 1. Find & Occupy a free dinode */
 						next_dinode_index = get_dinode(ptr_descriptor);
+						if (next_dinode_index < 0) {
+							panic("NOT ENOUGH FREE DINODE\n");
+						}
 						/* 2. Create a directory entry */
 						panic("TODO");
 
@@ -447,11 +450,9 @@ void fslib_build_1st_dinode(byte *ptr_buffer)
 	memset(ptr_buffer, 0, FS_BYTES_PER_BLOCK);
 
 	/* Init. 1st dinode */
+	init_dinode(&root);
 	root.type = DINODE_DIRECTORY;
 	root.link_cnt = 1;
-	root.major_dev = 0;
-	root.minor_dev = 0;
-	root.size = 0;
 
 	/* Write 1st dinode to the buffer */
 	/* printf("size of dinode is: %d\n", sizeof(struct dinode)); */

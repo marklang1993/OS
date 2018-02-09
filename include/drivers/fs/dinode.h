@@ -7,6 +7,7 @@
 
 /* dinode common macros */
 #define DINODE_DIRECT_CNT	11	/* Direct reference count */
+#define DINODE_INDIRECT_IDX DINODE_DIRECT_CNT /* Index of indirect reference block */
 #define DINODE_INDIRECT_CNT	1	/* Indirect reference count */
 #define DINODE_REF_CNT		(DINODE_DIRECT_CNT + DINODE_INDIRECT_CNT)
 
@@ -17,7 +18,7 @@
 #define DINODE_DEVICE		3
 
 /* Null reference */
-#define DINODE_REF_NULL		0
+#define DINODE_REF_NULL		0xffffffff
 
 /* Root directory dinode */
 #define DINODE_ROOT_DIRE_IDX	0
@@ -74,6 +75,14 @@ BOOL dinode_read_data_block(
 	uint32 cur_data_block,
 	const struct fs_partition_descriptor *ptr_descriptor,
 	struct fs_data_block *out_data_block
+);
+/* Insert data block pointed by given dinode and given cursor & Update the dinode */
+BOOL dinode_insert_data_block(
+	uint32 dinode_index,
+	struct dinode *ptr_dinode,
+	const struct fs_partition_descriptor *ptr_descriptor,
+	uint32 data_block_index,
+	const struct fs_data_block *in_data_block
 );
 
 #pragma pack(pop)

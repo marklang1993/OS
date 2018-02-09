@@ -24,7 +24,7 @@ int32 search_dinode_by_directory(
 
     /* Check type */
     if (ptr_dinode->type != DINODE_DIRECTORY) {
-        panic("DINODE IS NOT DIRECTORY\n");
+        panic("SEARCH: DINODE IS NOT DIRECTORY\n");
     }
 
     /* Calculate parameters */
@@ -63,17 +63,34 @@ int32 search_dinode_by_directory(
 
 /*
  # Insert an directory entry to the given directory dinode
- * ptr_dinode    : directory dinode that is being inserted
+ * ptr_dinode    : directory dinode where the new directory entry is inserted
  * name          : directory entry name (directory OR file) name
  * dinode_index  : related dinode index
  * ptr_descriptor: file system partition descriptor
  */
 BOOL insert_directory_entry(
-    const struct dinode *ptr_dinode, 
+    struct dinode *ptr_dinode, 
     const char* name,
     int32 dinode_index,
     const struct fs_partition_descriptor *ptr_descriptor
 )
 {
+    /* Check type */
+    if (ptr_dinode->type != DINODE_DIRECTORY) {
+        panic("INSERT: DINODE IS NOT DIRECTORY\n");
+    }
+
+    /* Determine is required to claim a new data block */
+    if (ptr_dinode->size % FS_BYTES_PER_BLOCK == 0) {
+        /* 
+         * New data block is required, due to
+         * 1. this dinode takes 0 data block
+         * 2. current data block is full
+         */
+
+    } else {
+        /* Can write to the current data block */
+
+    }
     return FALSE;
 }
