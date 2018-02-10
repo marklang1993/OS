@@ -152,15 +152,17 @@ BOOL write_dinode(
 
 /*
  # Read data block pointed by given dinode and given cursor
- * ptr_dinode    : given dinode
- * cur_data_block: data block cursor
- * ptr_descriptor: file system partition descriptor
- * out_data_block: data block pointer
+ * ptr_dinode          : given dinode
+ * cur_data_block      : data block cursor
+ * ptr_descriptor      : file system partition descriptor
+ * out_data_block_index: pointer of data block index
+ * out_data_block      : data block pointer
  */
 BOOL dinode_read_data_block(
 	const struct dinode *ptr_dinode,
 	uint32 cur_data_block,
 	const struct fs_partition_descriptor *ptr_descriptor,
+	uint32 *out_data_block_index,
 	struct fs_data_block *out_data_block
 )
 {
@@ -171,6 +173,10 @@ BOOL dinode_read_data_block(
     if (cur_data_block < DINODE_DIRECT_CNT) {
         /* Read the data block directly */
 		data_block_idx = ptr_dinode->block_ref[cur_data_block];
+
+		// if (data_block_idx == DINODE_REF_NULL) {
+		// 	return FALSE;
+		// }
 		kassert(data_block_idx != DINODE_REF_NULL);
 
     } else {

@@ -74,6 +74,7 @@ BOOL dinode_read_data_block(
 	const struct dinode *ptr_dinode,
 	uint32 cur_data_block,
 	const struct fs_partition_descriptor *ptr_descriptor,
+	uint32 *out_data_block_index,
 	struct fs_data_block *out_data_block
 );
 /* Insert data block pointed by given dinode and given cursor & Update the dinode */

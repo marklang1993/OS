@@ -142,6 +142,7 @@ void strcpy(char *destination, const char *source)
 {
 	uint32 length = strlen(source);
 	memcpy(destination, source, length);
+	destination[length] = '\0';
 }
 
 /*

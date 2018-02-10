@@ -70,8 +70,9 @@ static int32 parse_path(
 				/* probably this is a file system error, must panic */
 				panic("READ DINODE %d ERROR!\n", dinode_index);
 			}
+
+			/* printk("%s dinode_index = %d\n", cur_name, dinode_index); */
 			next_dinode_index = search_dinode_by_directory(&cur_dinode, cur_name, ptr_descriptor);
-			/* printk("%s next_dinode_index = %d\n", cur_name, next_dinode_index); */
 
 			/* Check the results */
 			if (next_dinode_index < 0) {
@@ -87,9 +88,8 @@ static int32 parse_path(
 						/* Mode is WRITE or APPEND - Need to create the target file */
 						/*
 						 * 1. Find & Occupy a free dinode
-						 * 2. Create a directory entry
-						 * 3. Update directory record
-						 * 4. Return that dinode index
+						 * 2. Insert a directory entry to the parent dinode
+						 * 3. Return that dinode index
 						 */
 
 						/* 1. Find & Occupy a free dinode */
@@ -98,8 +98,18 @@ static int32 parse_path(
 							panic("NOT ENOUGH FREE DINODE\n");
 						}
 						/* 2. Create a directory entry */
-						panic("TODO");
-
+						ret = insert_directory_entry(
+							dinode_index,
+							&cur_dinode,
+							cur_name,
+							next_dinode_index,
+							ptr_descriptor
+						);
+						if (NOT(IS_TRUE(ret))) {
+							panic("CREATING NEW DIRECTORY ENTRY FAILED!\n");
+						}
+						/* 3. Return that dinode index */
+						return next_dinode_index;
 					}
 
 				} else {
@@ -475,4 +485,17 @@ int32 fslib_open_file(
 )
 {
 	int32 dinode_index = parse_path(path, mode, ptr_descriptor);
+	/* Check the result of parsing path */
+	if (dinode_index < 0) {
+		panic("FSLIB OPEN FILE FAILED! DINODE INDEX IS NOT VALID!\n");
+	}
+
+	/* Create inode from this dinode */
+	
+	/* Create link from inode to file table */
+
+	/* Create link from corresponding entry of file table to process file descriptor table */
+
+	/* Return file descriptor id */
+	panic("TODO\n");
 }
