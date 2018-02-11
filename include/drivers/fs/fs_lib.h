@@ -76,6 +76,13 @@ struct fs_hdd_op
 /* File system driver library functions */
 void fslib_hdd_op(const struct fs_hdd_op *param); /* HDD operation */
 
+/* Get block w.r.t. corresponding bitmap */
+int32 fslib_get_block(
+	uint32 start_index,
+	uint32 count,
+	const struct fs_partition_descriptor *ptr_descriptor
+);
+
 /* Read bytes on the disk */
 BOOL fslib_read_bytes(
 	uint32 index,

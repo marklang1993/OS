@@ -29,44 +29,11 @@ void init_dinode(struct dinode *ptr_dinode)
  */
 int32 get_dinode(const struct fs_partition_descriptor *ptr_descriptor)
 {
-    struct fs_data_block dinode_map_block;
-	BOOL ret;
-	uint32 i;
-	int32 empty_block_index;
-
-	/* Traverse all dinode map blocks */
-	for (i = 0; i < ptr_descriptor->sb.dinode_map_cnt; ++i)
-	{
-		/* Read an inode map block */
-		ret = fslib_read_block(
-			ptr_descriptor->sb.dinode_map_start + i,
-			ptr_descriptor,
-			&dinode_map_block
-		);
-		kassert(IS_TRUE(ret));
-
-		/* Find an empty dinode by using current dinode bitmap block */
-		empty_block_index = fslib_find_empty_bitmap_block(&dinode_map_block);
-		if (empty_block_index >= 0) {
-			/* Find an empty block position */
-			fslib_set_bitmap_block(
-				empty_block_index,
-				TRUE,
-				&dinode_map_block
-			); /* Mark that dinode in current dinode bitmap block */
-			ret = fslib_write_block(
-				ptr_descriptor->sb.dinode_map_start + i,
-				ptr_descriptor,
-				&dinode_map_block
-			);
-			kassert(IS_TRUE(ret));
-			/* Calculate the absolute dinode index */
-			empty_block_index += i * FS_CNT_BIT_PER_BLOCK;
-			return empty_block_index;
-		}
-	}
-	/* No free dinode is found */
-	return -1;
+    return fslib_get_block(
+		ptr_descriptor->sb.dinode_map_start,
+		ptr_descriptor->sb.dinode_map_cnt,
+		ptr_descriptor
+	);
 }
 
 /* Free a used dinode */

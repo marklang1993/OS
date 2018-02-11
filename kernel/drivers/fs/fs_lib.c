@@ -167,6 +167,58 @@ void fslib_hdd_op(const struct fs_hdd_op *param)
 	}
 }
 
+/*
+ # Get block w.r.t. corresponding bitmap
+ * start_index   : index of bitmap start block
+ * count         : count of bitmap blocks
+ * ptr_descriptor: file system partition descriptor
+ */
+int32 fslib_get_block(
+	uint32 start_index,
+	uint32 count,
+	const struct fs_partition_descriptor *ptr_descriptor
+)
+{
+	struct fs_data_block bitmap_block;
+	BOOL ret;
+	uint32 i;
+	int32 empty_block_index;
+
+	/* Traverse all bitmap blocks */
+	for (i = 0; i < count; ++i)
+	{
+		/* Read an bitmap block */
+		ret = fslib_read_block(
+			start_index + i,
+			ptr_descriptor,
+			&bitmap_block
+		);
+		kassert(IS_TRUE(ret));
+
+		/* Find an empty data block by using current bitmap block */
+		empty_block_index = fslib_find_empty_bitmap_block(&bitmap_block);
+		if (empty_block_index >= 0) {
+			/* Find an empty block position */
+			fslib_set_bitmap_block(
+				empty_block_index,
+				TRUE,
+				&bitmap_block
+			); /* Mark and Occupy that data block in current bitmap block */
+			ret = fslib_write_block(
+				start_index + i,
+				ptr_descriptor,
+				&bitmap_block
+			);
+			kassert(IS_TRUE(ret));
+			/* Calculate the absolute block index */
+			empty_block_index += i * FS_CNT_BIT_PER_BLOCK;
+			return empty_block_index;
+		}
+	}
+	/* No free block is found */
+	return -1;	
+}
+
 /* 
  # Read bytes on the disk
  * index         : block index w.r.t. fs partition descriptor
@@ -268,7 +320,16 @@ BOOL fslib_write_block(
  */
 int32 fslib_get_data_block(const struct fs_partition_descriptor *ptr_descriptor)
 {
-	return -1;
+	/*
+	printk("data_map_start = %d; data_map_cnt = %d\n",
+		ptr_descriptor->sb.data_map_start,
+		ptr_descriptor->sb.data_map_cnt);
+	*/
+	return fslib_get_block(
+		ptr_descriptor->sb.data_map_start,
+		ptr_descriptor->sb.data_map_cnt,
+		ptr_descriptor
+	);
 }
 
 /*
@@ -491,7 +552,7 @@ int32 fslib_open_file(
 	}
 
 	/* Create inode from this dinode */
-	
+
 	/* Create link from inode to file table */
 
 	/* Create link from corresponding entry of file table to process file descriptor table */

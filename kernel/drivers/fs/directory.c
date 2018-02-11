@@ -36,7 +36,7 @@ int32 search_dinode_by_directory(
     /* Search */
     while (i < cnt_directory_entry) {
         /* printk("DINODE READ DATA BLOCK AT %d\n", cur_data_block); */
-        
+
         /* Read data block as directory block */
         ret = dinode_read_data_block(
             ptr_dinode,
@@ -109,9 +109,8 @@ BOOL insert_directory_entry(
     /* Do some calculations */
     data_block_pos = parent_dinode->size / FS_BYTES_PER_BLOCK;
     data_block_offset = parent_dinode->size % FS_BYTES_PER_BLOCK;
+    /* printk("data_block_pos = %d; data_block_offset = %d\n", data_block_pos, data_block_offset); */
 
-
-    printk("data_block_pos = %d; data_block_offset = %d\n", data_block_pos, data_block_offset);
     /* Determine is required to claim a new data block */
     if (data_block_offset == 0) {
         /* 
@@ -120,8 +119,9 @@ BOOL insert_directory_entry(
          * 2. current data block is full
          */
         new_data_block_index = fslib_get_data_block(ptr_descriptor);
+        /* printk("new_data_block_index = %d\n", new_data_block_index); */
         kassert(new_data_block_index >= 0);
-        
+
         /* Init. & Copy the dir. entry to the new data block */
         memset(&new_data_block, 0, sizeof(struct fs_data_block));
         memcpy(&new_data_block, &new_dir_entry, sizeof(struct directory_entry));
