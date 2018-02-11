@@ -23,10 +23,6 @@
 static BOOL fs_is_init = FALSE;	/* Flag: is file system driver initialized */
 static struct fs_mbr_partition_descriptor fs_part_table[FS_MAX_MBR_P_CNT];	/* FS partition table */
 
-/* FS global variables */
-struct file_table_entry file_table[FILE_TABLE_SIZE];	/* File Table */
-
-
 /*
  # Get hdd partition information
  @ fs_mbr_index   : fs partition mbr index
@@ -238,14 +234,14 @@ static void fs_dev_close(struct ipc_msg_payload_fs *param)
  */
 void fs_init(void)
 {
-	/* Init. inode */
-	inode_init();
-
 	/* Init. fs partition table */
 	memset(fs_part_table, 0x0, sizeof(fs_part_table));
 	
+	/* Init. inode */
+	inode_table_init();
+
 	/* Init. file table */
-	memset(file_table, 0x0, sizeof(file_table));
+	file_table_init();
 
 	/* Set Init. flag */
 	fs_is_init = TRUE;

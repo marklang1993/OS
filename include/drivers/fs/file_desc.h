@@ -21,7 +21,11 @@ typedef uint32 FILE_STATUS;
 struct file_table_entry {
     FILE_STATUS status;         /* File status */
     uint32 offset;              /* Current offset of operation */
+    uint32 inode_index;         /* Index of related inode */
     struct inode *inode_ptr;    /* Pointer to inode */
 };
+
+/* file table related functions */
+void file_table_init(void);
 
 #endif
